@@ -55,6 +55,7 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
           <div className="landing__liquid-mist" aria-hidden="true" />
           <div className="landing__liquid-sheen" aria-hidden="true" />
         </div>
+        <div className="landing__frost" aria-hidden="true" />
 
         <section className="landing__hero landing__hero--plexus">
           <div className="landing__copy">

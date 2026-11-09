@@ -38,8 +38,8 @@ type Network = {
 }
 
 const NOISE_STEPS = 36
-const NODE_COUNT = 420
-const LINK_K = 3
+const NODE_COUNT = 520
+const LINK_K = 4
 const BLOCK_PAD = 36
 const RING_TIPS = 10
 const RIM_DOTS = 12
@@ -179,14 +179,14 @@ function spawnSpider(net: Network): Spider {
   let others: Array<{ x: number; y: number }> = []
   const silkLen = new Float32Array(net.nodes.length)
 
-  const minSep = (w: number) => Math.max(140, w * 0.22)
+  const minSep = (w: number) => Math.max(72, w * 0.11)
 
   const awayFromOthers = (nx: number, ny: number, w: number) => {
     let penalty = 0
     const sep = minSep(w)
     for (const o of others) {
       const d = Math.hypot(nx - o.x, ny - o.y)
-      if (d < sep) penalty += (sep - d) * 3.2
+      if (d < sep) penalty += (sep - d) * 1.4
     }
     return penalty
   }
@@ -223,12 +223,12 @@ function spawnSpider(net: Network): Spider {
         best = j
       }
     }
-    if (rnd() < 0.28) {
-      // occasional roam among the half farthest from others
+    if (rnd() < 0.16) {
+      // occasional soft preference for a bit more space
       const ranked = [...freeNbrs].sort(
         (a, b) => awayFromOthers(net.nodes[b].x, net.nodes[b].y, w) - awayFromOthers(net.nodes[a].x, net.nodes[a].y, w),
       )
-      best = ranked[Math.floor(rnd(Math.max(1, ranked.length * 0.5)))]
+      best = ranked[Math.floor(rnd(Math.max(1, ranked.length * 0.7)))]
     }
     return best
   }
@@ -645,10 +645,10 @@ export function LandingPlexusScene() {
 
     const spiders = many(2, () => spawnSpider(net))
     // Seed opposite regions so they start apart
-    spiders[0]?.placeNear(w * 0.78, h * 0.22)
-    spiders[1]?.placeNear(w * 0.22, h * 0.72)
-    spiders[0]?.follow(w * 0.82, h * 0.18)
-    spiders[1]?.follow(w * 0.18, h * 0.78)
+    spiders[0]?.placeNear(w * 0.62, h * 0.32)
+    spiders[1]?.placeNear(w * 0.38, h * 0.62)
+    spiders[0]?.follow(w * 0.66, h * 0.28)
+    spiders[1]?.follow(w * 0.34, h * 0.66)
 
     const headGroups = spiders.map(() => {
       const g = new THREE.Group()
@@ -700,9 +700,9 @@ export function LandingPlexusScene() {
       if (rect.width < 1 || rect.height < 1) return
       const px = ((e.clientX - rect.left) / rect.width) * w
       const py = ((e.clientY - rect.top) / rect.height) * h
-      // Split pointer bias so spiders don't chase the same point
-      spiders[0]?.follow(px * 0.55 + w * 0.4, py * 0.7 + h * 0.05)
-      spiders[1]?.follow(px * 0.55 + w * 0.05, py * 0.7 + h * 0.25)
+      // Mild split so they can still meet in the middle
+      spiders[0]?.follow(px * 0.78 + w * 0.14, py * 0.85 + h * 0.04)
+      spiders[1]?.follow(px * 0.78 + w * 0.08, py * 0.85 + h * 0.1)
     }
     window.addEventListener('pointermove', onPointer, { passive: true })
 
