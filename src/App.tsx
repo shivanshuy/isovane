@@ -444,6 +444,28 @@ export default function App() {
             <span>Agent security</span>
           </div>
         </button>
+        <nav className="topbar__nav" aria-label="Primary">
+          <button
+            type="button"
+            className={onWelcome ? 'topbar__link topbar__link--on' : 'topbar__link'}
+            aria-current={onWelcome ? 'page' : undefined}
+            onClick={goWelcome}
+          >
+            Home
+          </button>
+          <button
+            type="button"
+            className={
+              route.kind === 'home' || inWorkspace || restoringWorkspace
+                ? 'topbar__link topbar__link--on'
+                : 'topbar__link'
+            }
+            aria-current={route.kind === 'home' ? 'page' : undefined}
+            onClick={goHome}
+          >
+            Workspaces
+          </button>
+        </nav>
         {themeSwitcher}
       </header>
 

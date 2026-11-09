@@ -41,8 +41,10 @@ const NOISE_STEPS = 36
 const NODE_COUNT = 420
 const LINK_K = 3
 const BLOCK_PAD = 36
-const RING_TIPS = 9
+const RING_TIPS = 10
 const RIM_DOTS = 12
+const SILK_MAX = 12
+const SILK_REACH = 0.22 // fraction of min(w,h)
 
 function buildNetwork(w: number, h: number): Network {
   const nodes: NetNode[] = many(NODE_COUNT, () => ({
@@ -145,6 +147,7 @@ type HubDot = { x: number; y: number; size: number }
 
 type Spider = {
   follow: (x: number, y: number) => void
+  avoidOthers: (pts: Array<{ x: number; y: number }>) => void
   tick: (t: number, w: number, h: number) => void
   collectSilk: (
     w: number,
@@ -157,6 +160,7 @@ type Spider = {
   stayInClear: () => void
   x: () => number
   y: () => number
+  placeNear: (x: number, y: number) => void
 }
 
 function spawnSpider(net: Network): Spider {
@@ -167,33 +171,65 @@ function spawnSpider(net: Network): Spider {
 
   let cur = randomFreeIndex(net)
   let next = cur
-  let progress = 1 // start settled on a node
-  let dwell = rnd(0.4, 0.2)
+  let progress = 1
+  let dwell = rnd(0.1, 0.04)
   let pointerX = net.nodes[cur].x
   let pointerY = net.nodes[cur].y
   let ringR = 40
+  let others: Array<{ x: number; y: number }> = []
   const silkLen = new Float32Array(net.nodes.length)
+
+  const minSep = (w: number) => Math.max(140, w * 0.22)
+
+  const awayFromOthers = (nx: number, ny: number, w: number) => {
+    let penalty = 0
+    const sep = minSep(w)
+    for (const o of others) {
+      const d = Math.hypot(nx - o.x, ny - o.y)
+      if (d < sep) penalty += (sep - d) * 3.2
+    }
+    return penalty
+  }
 
   const pickNext = (from: number, w: number) => {
     const freeNbrs = net.nodes[from].neighbors.filter((j) => !net.nodes[j].blocked)
-    const pool = freeNbrs.length ? freeNbrs : []
-    if (!pool.length) {
-      const leap = nearestFreeIndex(net, net.nodes[from].x, net.nodes[from].y, from)
-      return leap >= 0 ? leap : from
-    }
-
-    let best = pool[0]
-    let bestScore = Infinity
-    for (const j of pool) {
+    const scoreNode = (j: number) => {
       const n = net.nodes[j]
       const toPointer = Math.hypot(n.x - pointerX, n.y - pointerY)
-      const score = toPointer + rnd(w * 0.04)
-      if (score < bestScore) {
-        bestScore = score
+      return toPointer + awayFromOthers(n.x, n.y, w) + rnd(w * 0.05)
+    }
+
+    if (!freeNbrs.length) {
+      let leap = -1
+      let bestScore = Infinity
+      for (let i = 0; i < net.nodes.length; i++) {
+        if (i === from || net.nodes[i].blocked) continue
+        const s = scoreNode(i)
+        if (s < bestScore) {
+          bestScore = s
+          leap = i
+        }
+      }
+      return leap >= 0 ? leap : randomFreeIndex(net)
+    }
+
+    // Prefer neighbors that keep distance from other spiders
+    let best = freeNbrs[0]
+    let bestScore = Infinity
+    for (const j of freeNbrs) {
+      const s = scoreNode(j)
+      if (s < bestScore) {
+        bestScore = s
         best = j
       }
     }
-    if (rnd() < 0.18) best = pool[Math.floor(rnd(pool.length))]
+    if (rnd() < 0.28) {
+      // occasional roam among the half farthest from others
+      const ranked = [...freeNbrs].sort(
+        (a, b) => awayFromOthers(net.nodes[b].x, net.nodes[b].y, w) - awayFromOthers(net.nodes[a].x, net.nodes[a].y, w),
+      )
+      best = ranked[Math.floor(rnd(Math.max(1, ranked.length * 0.5)))]
+    }
     return best
   }
 
@@ -209,6 +245,21 @@ function spawnSpider(net: Network): Spider {
       }
     },
 
+    avoidOthers(pts) {
+      others = pts
+    },
+
+    placeNear(x, y) {
+      const i = nearestFreeIndex(net, x, y)
+      if (i < 0) return
+      cur = i
+      next = i
+      progress = 1
+      dwell = rnd(0.08, 0.04)
+      pointerX = net.nodes[i].x
+      pointerY = net.nodes[i].y
+    },
+
     stayInClear() {
       if (!net.nodes[cur]?.blocked && !net.nodes[next]?.blocked) return
       const i = nearestFreeIndex(net, this.x(), this.y())
@@ -216,7 +267,7 @@ function spawnSpider(net: Network): Spider {
       cur = i
       next = i
       progress = 1
-      dwell = rnd(0.3, 0.15)
+      dwell = rnd(0.08, 0.04)
       pointerX = net.nodes[i].x
       pointerY = net.nodes[i].y
     },
@@ -264,18 +315,24 @@ function spawnSpider(net: Network): Spider {
           net.nodes[next].x - net.nodes[cur].x,
           net.nodes[next].y - net.nodes[cur].y,
         )
-        const speed = Math.max(120, w * 0.35)
+        const speed = Math.max(240, w * 0.62)
         progress = Math.min(1, progress + (speed * dt) / Math.max(dist, 1))
         if (progress >= 1) {
           cur = next
-          dwell = rnd(0.35, 0.25)
+          dwell = rnd(0.12, 0.06)
         }
       } else {
         dwell -= dt
         if (dwell <= 0) {
           next = pickNext(cur, w)
           if (next === cur) {
-            dwell = 0.2
+            // Force a random free hop if still stuck
+            next = randomFreeIndex(net)
+            if (next === cur) {
+              dwell = 0.05
+            } else {
+              progress = 0
+            }
           } else {
             progress = 0
           }
@@ -285,14 +342,42 @@ function spawnSpider(net: Network): Spider {
       const sx = this.x()
       const sy = this.y()
 
-      let attached = 0
+      // Grow silk toward nearby free nodes, spread around the hub (spider legs)
+      const reach = Math.min(w, h) * SILK_REACH
+      const candidates: { i: number; len: number; ang: number }[] = []
       for (let i = 0; i < net.nodes.length; i++) {
+        if (i === cur || i === next) continue
         const n = net.nodes[i]
+        if (n.blocked) continue
         const len = Math.hypot(n.x - sx, n.y - sy)
-        const increasing =
-          !n.blocked && len < w / 10 && attached < 8 && i !== cur && i !== next
-        if (increasing) attached++
-        const dir = increasing ? 0.12 : -0.1
+        if (len <= 1 || len > reach) continue
+        candidates.push({ i, len, ang: Math.atan2(n.y - sy, n.x - sx) })
+      }
+      candidates.sort((a, b) => a.len - b.len)
+
+      const chosen = new Set<number>()
+      const sectorUsed = new Float32Array(SILK_MAX)
+      sectorUsed.fill(-999)
+      for (const c of candidates) {
+        if (chosen.size >= SILK_MAX) break
+        let sector = Math.floor(((c.ang + Math.PI) / (Math.PI * 2)) * SILK_MAX) % SILK_MAX
+        // Prefer empty angular sectors so legs fan out
+        let placed = false
+        for (let k = 0; k < SILK_MAX; k++) {
+          const s = (sector + k) % SILK_MAX
+          if (sectorUsed[s] < -100) {
+            sectorUsed[s] = c.ang
+            chosen.add(c.i)
+            placed = true
+            break
+          }
+        }
+        if (!placed && chosen.size < SILK_MAX) chosen.add(c.i)
+      }
+
+      for (let i = 0; i < net.nodes.length; i++) {
+        const increasing = chosen.has(i)
+        const dir = increasing ? 0.16 : -0.12
         silkLen[i] = Math.max(0, Math.min(silkLen[i] + dir, 1))
       }
     },
@@ -405,7 +490,7 @@ export function LandingPlexusScene() {
       transparent: true,
       opacity: 0.22,
       depthTest: false,
-      linewidth: 1.05,
+      linewidth: 1.45,
       resolution: new THREE.Vector2(w, h),
     })
     const netLines = new LineSegments2(netLineGeo, netLineMat)
@@ -483,7 +568,7 @@ export function LandingPlexusScene() {
     writeNodes()
 
     // ---- Spider silk (dynamic fat lines) ----
-    const MAX_SEGS = 2 * 10 * (NOISE_STEPS + 2)
+    const MAX_SEGS = 2 * SILK_MAX * (NOISE_STEPS + 2)
     const silkPos = new Float32Array(MAX_SEGS * 6)
     const silkGeo = new LineSegmentsGeometry()
     // seed with a dummy segment so geometry initializes
@@ -493,7 +578,7 @@ export function LandingPlexusScene() {
       transparent: true,
       opacity: 0.95,
       depthTest: false,
-      linewidth: 1.25,
+      linewidth: 1.7,
       resolution: new THREE.Vector2(w, h),
     })
     const silk = new LineSegments2(silkGeo, silkMat)
@@ -542,7 +627,6 @@ export function LandingPlexusScene() {
         void main() {
           float r = length(vUv - vec2(0.5)) * 2.0;
           if (r > 1.0) discard;
-          // pale peach core, soft coral mid (ref), soft edge under dots
           float innerMask = 1.0 - smoothstep(0.3, 0.4, r);
           float midMask = smoothstep(0.32, 0.45, r) * (1.0 - smoothstep(0.9, 1.0, r));
           float a = (innerMask * 0.32 + midMask * 0.62) * uStrength;
@@ -560,6 +644,12 @@ export function LandingPlexusScene() {
     })
 
     const spiders = many(2, () => spawnSpider(net))
+    // Seed opposite regions so they start apart
+    spiders[0]?.placeNear(w * 0.78, h * 0.22)
+    spiders[1]?.placeNear(w * 0.22, h * 0.72)
+    spiders[0]?.follow(w * 0.82, h * 0.18)
+    spiders[1]?.follow(w * 0.18, h * 0.78)
+
     const headGroups = spiders.map(() => {
       const g = new THREE.Group()
       const fill = new THREE.Mesh(headDiscGeo, headFadeMat)
@@ -570,8 +660,6 @@ export function LandingPlexusScene() {
       scene.add(g)
       return g
     })
-    spiders[0]?.follow(w * 0.82, h * 0.22)
-    spiders[1]?.follow(w * 0.78, h * 0.48)
 
     const applyTheme = () => {
       const t = readPlexusTheme()
@@ -579,19 +667,18 @@ export function LandingPlexusScene() {
       const ink = new THREE.Color(t.fg)
       const accent = new THREE.Color(t.accent)
       const edge = ink.clone().lerp(accent, t.isDark ? 0.35 : 0.2)
-      // Ref palette: pale peach core, soft coral mid, saturated rim/silk
       const white = new THREE.Color('#ffffff')
-      const core = accent.clone().lerp(white, t.isDark ? 0.62 : 0.72) // #fad5c4-ish
-      const band = accent.clone().lerp(white, t.isDark ? 0.28 : 0.38) // #f5a88a-ish
-      const rimDot = accent.clone() // saturated like #e85a30
+      const core = accent.clone().lerp(white, t.isDark ? 0.62 : 0.72)
+      const band = accent.clone().lerp(white, t.isDark ? 0.28 : 0.38)
+      const rimDot = accent.clone()
       renderer.setClearColor(bg, 1)
       scene.background = bg
       netLineMat.color.copy(edge)
       netLineMat.opacity = t.isDark ? 0.32 : 0.28
-      netLineMat.linewidth = 1.05
+      netLineMat.linewidth = 1.45
       silkMat.color.copy(accent)
       silkMat.opacity = t.isDark ? 0.96 : 0.94
-      silkMat.linewidth = 1.25
+      silkMat.linewidth = 1.7
       ;(dotsMat.uniforms.uColor.value as THREE.Color).copy(ink)
       ;(hubMat.uniforms.uColor.value as THREE.Color).copy(rimDot)
       ;(headFadeMat.uniforms.uCore.value as THREE.Color).copy(core)
@@ -613,7 +700,9 @@ export function LandingPlexusScene() {
       if (rect.width < 1 || rect.height < 1) return
       const px = ((e.clientX - rect.left) / rect.width) * w
       const py = ((e.clientY - rect.top) / rect.height) * h
-      for (const sp of spiders) sp.follow(px, py)
+      // Split pointer bias so spiders don't chase the same point
+      spiders[0]?.follow(px * 0.55 + w * 0.4, py * 0.7 + h * 0.05)
+      spiders[1]?.follow(px * 0.55 + w * 0.05, py * 0.7 + h * 0.25)
     }
     window.addEventListener('pointermove', onPointer, { passive: true })
 
@@ -658,7 +747,14 @@ export function LandingPlexusScene() {
       frame = requestAnimationFrame(anim)
       const t = ms / 1000
 
-      for (const sp of spiders) sp.tick(t, w, h)
+      // Keep spiders separated from each other
+      spiders.forEach((sp, i) => {
+        const others = spiders
+          .filter((_, j) => j !== i)
+          .map((o) => ({ x: o.x(), y: o.y() }))
+        sp.avoidOthers(others)
+        sp.tick(t, w, h)
+      })
 
       const silkCount = { n: 0 }
       for (const sp of spiders) sp.collectSilk(w, h, silkPos, silkCount)
@@ -677,7 +773,6 @@ export function LandingPlexusScene() {
         const hg = headGroups[si]
         if (hg) {
           hg.position.set(sx, mapY(sy), 0.25)
-          // slightly larger than rim dots so the fade covers them
           hg.scale.setScalar(sp.headRadius() * 1.1)
         }
         for (const d of sp.hubs()) {

@@ -23,10 +23,11 @@
   --nav-active: #f0f0f0;
   --nav-active-fg: #0a0a0a;
   --chrome: #a3a3a3;
-  --header-bg: #ffffff;
-  --section-head-bg: #ffffff;
+  /* Distinct from --bg so topbar reads as chrome (same idea as black-hole) */
+  --header-bg: #f0f0f0;
+  --section-head-bg: #f0f0f0;
   --card: #ffffff;
-  --inset: #f5f5f5;
+  --inset: #e8e8e8;
   --blue: #0a0a0a;
   --orange: #f35422;
   --green: #1f7a4c;
@@ -106,10 +107,11 @@
   --nav-active: #e8f6ee;
   --nav-active-fg: #0f1a14;
   --chrome: #8aa095;
-  --header-bg: #ffffff;
-  --section-head-bg: #ffffff;
+  /* Distinct from --bg so topbar reads as chrome (same idea as black-hole) */
+  --header-bg: #eaf3ee;
+  --section-head-bg: #eaf3ee;
   --card: #ffffff;
-  --inset: #eef5f0;
+  --inset: #dce8e1;
   --blue: #1c2420;
   --orange: #2fbf78;
   --green: #2fbf78;
@@ -264,24 +266,88 @@ p {
   padding: 0.78rem 1rem 0.58rem;
   background: var(--header-bg);
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   border-radius: 0;
-  box-shadow: inset 0 -1px 0 rgba(10, 10, 10, 0.06);
+  box-shadow: none;
   animation: rise-in 0.55s var(--ease) both;
   box-sizing: border-box;
 }
 
+/* Soft fade from header chrome into the stage */
+.topbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 7px;
+  pointer-events: none;
+  z-index: 3;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--header-bg) 40%, transparent) 0%,
+    transparent 100%
+  );
+  filter: none;
+}
+
+.topbar__nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: auto;
+  margin-left: 8px;
+}
+
+.topbar__link {
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+
+.topbar__link:hover {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+.topbar__link--on {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.topbar__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 [data-theme='red-dwarf'] .topbar ,
 [data-theme='earth'] .topbar {
-  border-color: var(--border);
+  background: var(--header-bg);
 }
 
 [data-theme='black-hole'] .topbar {
   background: var(--header-bg);
-  border-color: var(--border);
-  box-shadow: none;
   padding: 0.78rem 1rem 0.58rem;
-  backdrop-filter: none;
+}
+
+[data-theme='black-hole'] .topbar::after {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--header-bg) 35%, transparent) 0%,
+    transparent 100%
+  );
+  height: 8px;
 }
 
 .brand {
@@ -2806,13 +2872,90 @@ p {
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  /* Keep plexus alive; only a soft left veil, not a white wall */
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--bg) 78%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 35%, transparent) 32%,
-    transparent 52%
+  /* Soft vignette so frosted glass can still sample the liquid field */
+  background: radial-gradient(
+    120% 90% at 18% 42%,
+    color-mix(in srgb, var(--bg) 28%, transparent) 0%,
+    transparent 55%
   );
+}
+
+.landing__liquid-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.landing__liquid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.landing__liquid .landing-plexus {
+  /* Oversized so feDisplacementMap fray is clipped, not visible on stage edges */
+  position: absolute;
+  inset: -8%;
+  width: 116%;
+  height: 116%;
+  filter: url(#isovane-liquid) contrast(1.05) saturate(1.06);
+  transform: translateZ(0);
+  will-change: filter;
+}
+
+/* Condensation mist over the liquid warp */
+.landing__liquid-mist {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.4;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.9'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  filter: contrast(1.25) brightness(1.08);
+}
+
+/* Soft glass sheen only — no streak bars or hard droplet dots */
+.landing__liquid-sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0.55;
+  mix-blend-mode: soft-light;
+  background:
+    radial-gradient(ellipse 48% 32% at 50% 8%, rgba(255, 255, 255, 0.72), transparent 68%),
+    radial-gradient(ellipse 22% 44% at 14% 50%, rgba(255, 255, 255, 0.28), transparent 72%),
+    radial-gradient(ellipse 26% 40% at 84% 58%, rgba(255, 255, 255, 0.22), transparent 70%);
+  animation: liquid-sheen 12s ease-in-out infinite alternate;
+}
+
+@keyframes liquid-sheen {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.55;
+  }
+  to {
+    transform: translate3d(-2%, 1.6%, 0) scale(1.04);
+    opacity: 0.8;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__liquid .landing-plexus {
+    filter: none;
+  }
+  .landing__liquid-sheen {
+    animation: none;
+  }
+  .landing__liquid-mist {
+    opacity: 0.32;
+  }
 }
 
 .landing-plexus {
@@ -2843,33 +2986,67 @@ p {
   align-items: center;
   justify-content: flex-start;
   min-height: 0;
-  height: calc(100% - 92px);
+  height: calc(100% - 120px);
   padding: 0 clamp(28px, 5vw, 64px);
   max-width: none;
 }
 
+/* Strong frosted glass panel + floating glass accents */
 .landing--plexus .landing__copy {
   position: relative;
   z-index: 1;
-  max-width: 34rem;
-  padding: 8px 8px 8px 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
+  isolation: isolate;
+  max-width: 36rem;
+  padding: clamp(30px, 3.4vw, 44px) clamp(30px, 3.6vw, 46px);
+  border-radius: 32px;
+  border: 1.5px solid color-mix(in srgb, #ffffff 78%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, #ffffff 62%, transparent) 0%,
+      color-mix(in srgb, #ffffff 36%, transparent) 100%
+    );
+  backdrop-filter: blur(48px) saturate(1.35);
+  -webkit-backdrop-filter: blur(48px) saturate(1.35);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 85%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, #ffffff 22%, transparent),
+    0 28px 70px -28px color-mix(in srgb, var(--fg) 40%, transparent);
+  overflow: visible;
 }
 
-/* Soft editorial plate behind type — feathered, no border/shadow (not a card) */
-.landing--plexus .landing__copy::before {
+.landing--plexus .landing__copy::after {
   content: '';
   position: absolute;
-  z-index: -1;
-  inset: -28px -56px -36px -36px;
-  background: color-mix(in srgb, var(--bg) 90%, transparent);
-  mask-image: radial-gradient(120% 90% at 20% 45%, #000 42%, transparent 78%);
-  -webkit-mask-image: radial-gradient(120% 90% at 20% 45%, #000 42%, transparent 78%);
+  inset: 0;
+  border-radius: inherit;
   pointer-events: none;
+  opacity: 0.22;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+[data-theme='black-hole'] .landing--plexus .landing__copy {
+  border-color: color-mix(in srgb, #ffffff 28%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #ffffff 16%, transparent) 0%,
+    color-mix(in srgb, #ffffff 7%, transparent) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 18%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, #ffffff 8%, transparent),
+    0 32px 72px -28px rgba(0, 0, 0, 0.7);
+}
+
+[data-theme='black-hole'] .landing--plexus .landing__copy .landing__brand,
+[data-theme='black-hole'] .landing--plexus .landing__copy .landing__line {
+  color: #f4f7fb;
+}
+
+[data-theme='black-hole'] .landing--plexus .landing__copy .landing__lede {
+  color: color-mix(in srgb, #f4f7fb 72%, transparent);
 }
 
 .landing__kicker {
@@ -3006,7 +3183,7 @@ p {
   font-size: 0.84rem !important;
 }
 
-/* Bottom loop — still one viewport, solid fade so mesh never mixes with labels */
+/* Bottom loop — taller frosted fade so mesh never fights the labels */
 .landing__loop {
   position: absolute;
   left: 0;
@@ -3016,13 +3193,18 @@ p {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
-  padding: 22px clamp(28px, 5vw, 64px) 26px;
+  padding: 56px clamp(28px, 5vw, 64px) 28px;
   background: linear-gradient(
     180deg,
     transparent 0%,
-    color-mix(in srgb, var(--bg) 72%, transparent) 28%,
-    var(--bg) 62%
+    color-mix(in srgb, var(--bg) 55%, transparent) 32%,
+    color-mix(in srgb, var(--bg) 88%, transparent) 58%,
+    var(--bg) 78%
   );
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 38%, #000 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 38%, #000 100%);
   border-top: 0;
 }
 
@@ -3380,7 +3562,7 @@ p {
   .landing__loop {
     grid-template-columns: 1fr;
     gap: 14px;
-    padding: 16px 22px 22px;
+    padding: 40px 22px 22px;
   }
   .landing__loop-item + .landing__loop-item {
     padding-left: 0;
