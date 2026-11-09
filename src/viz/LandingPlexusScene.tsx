@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js'
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js'
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 
 /**
  * Network of dots (nodes + edges). Spiders jump node → node along edges,
@@ -93,7 +96,7 @@ function readBlockers(host: HTMLElement): BlockRect[] {
   const root = host.closest('.landing') ?? host.parentElement
   if (!root) return []
   const hostRect = host.getBoundingClientRect()
-  const els = root.querySelectorAll<HTMLElement>('.landing__copy, .landing__card')
+  const els = root.querySelectorAll<HTMLElement>('.landing__copy, .landing__loop')
   const rects: BlockRect[] = []
   for (const el of els) {
     const r = el.getBoundingClientRect()
@@ -394,19 +397,18 @@ export function LandingPlexusScene() {
     let netH = h
     markBlocked(net, readBlockers(host))
 
-    // ---- Static-ish network edges ----
+    // ---- Static-ish network edges (fat lines) ----
     const netLinePos = new Float32Array(NODE_COUNT * LINK_K * 6)
-    const netLineGeo = new THREE.BufferGeometry()
-    const netLineAttr = new THREE.BufferAttribute(netLinePos, 3)
-    netLineAttr.setUsage(THREE.DynamicDrawUsage)
-    netLineGeo.setAttribute('position', netLineAttr)
-    const netLineMat = new THREE.LineBasicMaterial({
+    const netLineGeo = new LineSegmentsGeometry()
+    const netLineMat = new LineMaterial({
       color: 0x0a0a0a,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.22,
       depthTest: false,
+      linewidth: 1.05,
+      resolution: new THREE.Vector2(w, h),
     })
-    const netLines = new THREE.LineSegments(netLineGeo, netLineMat)
+    const netLines = new LineSegments2(netLineGeo, netLineMat)
     scene.add(netLines)
 
     const writeNetEdges = () => {
@@ -423,8 +425,8 @@ export function LandingPlexusScene() {
         netLinePos[i + 5] = 0
         n++
       }
-      netLineAttr.needsUpdate = true
-      netLineGeo.setDrawRange(0, n * 2)
+      if (n > 0) netLineGeo.setPositions(netLinePos.subarray(0, n * 6))
+      netLines.visible = n > 0
     }
     writeNetEdges()
 
@@ -480,21 +482,22 @@ export function LandingPlexusScene() {
     }
     writeNodes()
 
-    // ---- Spider silk (dynamic) ----
+    // ---- Spider silk (dynamic fat lines) ----
     const MAX_SEGS = 2 * 10 * (NOISE_STEPS + 2)
     const silkPos = new Float32Array(MAX_SEGS * 6)
-    const silkGeo = new THREE.BufferGeometry()
-    const silkAttr = new THREE.BufferAttribute(silkPos, 3)
-    silkAttr.setUsage(THREE.DynamicDrawUsage)
-    silkGeo.setAttribute('position', silkAttr)
-    silkGeo.setDrawRange(0, 0)
-    const silkMat = new THREE.LineBasicMaterial({
+    const silkGeo = new LineSegmentsGeometry()
+    // seed with a dummy segment so geometry initializes
+    silkGeo.setPositions(new Float32Array([0, 0, 0, 0, 0, 0]))
+    const silkMat = new LineMaterial({
       color: 0xf35422,
       transparent: true,
-      opacity: 0.92,
+      opacity: 0.95,
       depthTest: false,
+      linewidth: 1.25,
+      resolution: new THREE.Vector2(w, h),
     })
-    const silk = new THREE.LineSegments(silkGeo, silkMat)
+    const silk = new LineSegments2(silkGeo, silkMat)
+    silk.visible = false
     scene.add(silk)
 
     // pupil + dotted outer rim
@@ -584,9 +587,11 @@ export function LandingPlexusScene() {
       renderer.setClearColor(bg, 1)
       scene.background = bg
       netLineMat.color.copy(edge)
-      netLineMat.opacity = t.isDark ? 0.24 : 0.16
+      netLineMat.opacity = t.isDark ? 0.32 : 0.28
+      netLineMat.linewidth = 1.05
       silkMat.color.copy(accent)
-      silkMat.opacity = t.isDark ? 0.95 : 0.88
+      silkMat.opacity = t.isDark ? 0.96 : 0.94
+      silkMat.linewidth = 1.25
       ;(dotsMat.uniforms.uColor.value as THREE.Color).copy(ink)
       ;(hubMat.uniforms.uColor.value as THREE.Color).copy(rimDot)
       ;(headFadeMat.uniforms.uCore.value as THREE.Color).copy(core)
@@ -634,6 +639,8 @@ export function LandingPlexusScene() {
       const pr = renderer.getPixelRatio()
       dotsMat.uniforms.uPixelRatio.value = pr
       hubMat.uniforms.uPixelRatio.value = pr
+      netLineMat.resolution.set(w, h)
+      silkMat.resolution.set(w, h)
       writeNetEdges()
       writeNodes()
       refreshClearZones()
@@ -655,8 +662,12 @@ export function LandingPlexusScene() {
 
       const silkCount = { n: 0 }
       for (const sp of spiders) sp.collectSilk(w, h, silkPos, silkCount)
-      silkAttr.needsUpdate = true
-      silkGeo.setDrawRange(0, silkCount.n * 2)
+      if (silkCount.n > 0) {
+        silkGeo.setPositions(silkPos.subarray(0, silkCount.n * 6))
+        silk.visible = true
+      } else {
+        silk.visible = false
+      }
 
       const mapY = (py: number) => h - py
       let hi = 0
@@ -695,6 +706,8 @@ export function LandingPlexusScene() {
       nodeGeo.dispose()
       silkGeo.dispose()
       silkMat.dispose()
+      scene.remove(netLines)
+      scene.remove(silk)
       hubGeo.dispose()
       hubMat.dispose()
       headDiscGeo.dispose()

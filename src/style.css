@@ -2781,9 +2781,38 @@ p {
   max-width: none;
   width: 100%;
   min-height: calc(100vh - 88px);
-  padding: 0 0 36px;
+  padding: 0;
   gap: 0;
   overflow: hidden;
+  background: var(--bg);
+}
+
+/*
+  One composition: solid editorial field on the left (readable),
+  open plexus field on the right (the product art). No cards.
+*/
+.landing__stage {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 88px);
+  height: calc(100vh - 88px);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.landing__stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  /* Keep plexus alive; only a soft left veil, not a white wall */
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--bg) 78%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 35%, transparent) 32%,
+    transparent 52%
+  );
 }
 
 .landing-plexus {
@@ -2808,44 +2837,86 @@ p {
 
 .landing__hero--plexus {
   position: relative;
-  z-index: 1;
-  grid-template-columns: minmax(0, 1fr);
-  min-height: min(72vh, 720px);
-  align-items: end;
-  padding: 48px 28px 36px;
-  max-width: 1100px;
+  z-index: 2;
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 0;
+  height: calc(100% - 92px);
+  padding: 0 clamp(28px, 5vw, 64px);
+  max-width: none;
 }
 
 .landing--plexus .landing__copy {
+  position: relative;
+  z-index: 1;
   max-width: 34rem;
-  padding: 22px 22px 20px;
-  border-radius: var(--radius-card);
-  background: color-mix(in srgb, var(--card) 92%, transparent);
-  border: 1px solid var(--border-strong);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
+  padding: 8px 8px 8px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
-.landing--plexus .landing__copy h1 {
+/* Soft editorial plate behind type — feathered, no border/shadow (not a card) */
+.landing--plexus .landing__copy::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -28px -56px -36px -36px;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  mask-image: radial-gradient(120% 90% at 20% 45%, #000 42%, transparent 78%);
+  -webkit-mask-image: radial-gradient(120% 90% at 20% 45%, #000 42%, transparent 78%);
+  pointer-events: none;
+}
+
+.landing__kicker {
+  margin: 0 0 18px;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.landing__brand {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(4.6rem, 14vw, 8.2rem);
+  font-weight: 700;
+  letter-spacing: -0.07em;
+  line-height: 0.88;
   color: var(--fg);
 }
 
-.landing--plexus .landing__lede,
-.landing--plexus .landing__cta .muted {
-  color: var(--muted);
+.landing__brand::after {
+  content: '';
+  display: block;
+  width: 0;
+  height: 3px;
+  margin-top: 18px;
+  background: var(--accent);
+  animation: landing-rule 0.7s var(--ease) 0.18s forwards;
 }
 
-.landing--plexus .landing__grid {
-  position: relative;
-  z-index: 1;
-  max-width: 1100px;
-  margin: 0 28px;
-  padding-top: 8px;
+@keyframes landing-rule {
+  to {
+    width: 3rem;
+  }
 }
 
-.landing--plexus .landing__card {
-  background: color-mix(in srgb, var(--card) 94%, transparent);
-  backdrop-filter: blur(8px);
+.landing__line {
+  margin: 22px 0 0;
+  font-family: var(--display);
+  font-size: clamp(1.55rem, 2.8vw, 2.15rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+  color: var(--fg);
+  max-width: 16ch;
 }
 
 .landing__eyebrow,
@@ -2860,28 +2931,37 @@ p {
 }
 
 .landing__copy h1 {
+  margin: 0;
   font-family: var(--display);
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 700;
-  letter-spacing: -0.045em;
-  line-height: 1.05;
+  font-size: clamp(1.35rem, 2.6vw, 1.95rem);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
   color: var(--fg);
 }
 
 .landing__lede {
-  margin-top: 12px;
-  max-width: 36rem;
+  margin-top: 14px;
+  max-width: 34rem;
   color: var(--muted);
-  font-size: 1.05rem;
+  font-size: clamp(1.08rem, 1.5vw, 1.2rem);
   line-height: 1.55;
 }
 
 .landing__cta {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   flex-wrap: wrap;
-  margin-top: 20px;
+  margin-top: 28px;
+}
+
+.landing__trail {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .landing__viz {
@@ -2924,6 +3004,74 @@ p {
   border-top: 1px solid var(--border);
   color: var(--fg) !important;
   font-size: 0.84rem !important;
+}
+
+/* Bottom loop — still one viewport, solid fade so mesh never mixes with labels */
+.landing__loop {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  padding: 22px clamp(28px, 5vw, 64px) 26px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--bg) 72%, transparent) 28%,
+    var(--bg) 62%
+  );
+  border-top: 0;
+}
+
+.landing__loop-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 4px;
+  padding-right: clamp(12px, 2vw, 28px);
+  align-items: baseline;
+}
+
+.landing__loop-item + .landing__loop-item {
+  padding-left: clamp(12px, 2vw, 28px);
+  border-left: 1px solid var(--border-strong);
+}
+
+.landing__loop-num {
+  grid-row: 1 / span 2;
+  align-self: start;
+  padding-top: 3px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.landing__loop-item strong {
+  font-family: var(--display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--fg);
+}
+
+.landing__loop-item > span:last-child {
+  grid-column: 2;
+  font-size: 0.98rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__brand::after {
+    animation: none;
+    width: 3rem;
+  }
 }
 
 .detail--story {
@@ -3215,6 +3363,30 @@ p {
   .story-rise--3,
   .story-rise--4 {
     animation: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .landing__stage {
+    height: auto;
+    min-height: calc(100vh - 88px);
+  }
+  .landing__hero--plexus {
+    height: auto;
+    min-height: min(68vh, 620px);
+    padding: 40px 22px 130px;
+    align-items: flex-end;
+  }
+  .landing__loop {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 16px 22px 22px;
+  }
+  .landing__loop-item + .landing__loop-item {
+    padding-left: 0;
+    border-left: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
   }
 }
 
