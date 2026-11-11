@@ -15,7 +15,7 @@ import { paneEyebrow } from './config'
 import { NavIcon } from './components/ShellIcons'
 import { STORAGE_WATCH_GATE } from './constants'
 import type { Workspace } from './data'
-import { isArchitectureFinding, isOpenFinding, type FixLane } from './findings'
+import { isArchitectureFinding, isOpenFinding, laneOf, type FixLane } from './findings'
 import { useTheme } from './hooks/useTheme'
 import { AnalyzeArchitecturePane, AnalyzeCodePane } from './panes/Analyze'
 import { FixPane } from './panes/Fix'
@@ -141,9 +141,7 @@ export default function App() {
     (f) => isOpenFinding(f) && f.source === 'analyze',
   ).length
   const openGateFixes = findings.filter(
-    (f) =>
-      isOpenFinding(f) &&
-      (f.source === 'watch' || f.source === 'hunt' || f.category === 'runtime'),
+    (f) => isOpenFinding(f) && laneOf(f) === 'watch',
   ).length
 
   const goWelcome = () => {
@@ -347,7 +345,7 @@ export default function App() {
                   : 'nav__flow'
               }
             >
-              <p className="nav__flow-label">Find â†’ patch</p>
+              <p className="nav__flow-label">Find → patch</p>
               <button
                 className={nav === 'analyze-code' ? 'nav__link nav__link--on' : 'nav__link'}
                 type="button"
@@ -387,7 +385,7 @@ export default function App() {
                   nav === 'watch' || nav === 'fix-gate' ? 'nav__flow nav__flow--on' : 'nav__flow'
                 }
               >
-                <p className="nav__flow-label">Watch â†’ gate</p>
+                <p className="nav__flow-label">Watch → gate</p>
                 <button
                   className={nav === 'watch' ? 'nav__link nav__link--on' : 'nav__link'}
                   type="button"
@@ -429,7 +427,7 @@ export default function App() {
             <section className="stage__head">
               <div>
                 <p className="stage__eyebrow">Restoring</p>
-                <h1>Opening workspaceâ€¦</h1>
+                <h1>Opening workspace…</h1>
                 <p>{workspaceId}</p>
               </div>
             </section>

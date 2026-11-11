@@ -1,0 +1,134 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600&family=Outfit:wght@400;500;600;700&display=swap');
+
+:root,
+[data-theme='red-dwarf'] {
+  /* True light theme: white chrome, brand orange for mark/CTA only, severity separate */
+  --fg: #0a0a0a;
+  --bg: #ffffff;
+  --ink-on-accent: #ffffff;
+  --text: #171717;
+  --muted: #525252;
+  --faint: #737373;
+  --border: #ebebeb;
+  --border-strong: #d4d4d4;
+  --fail-border: #b42318;
+  --fail-ring: #912018;
+  --fail-bg: #fef3f2;
+  --panel-bg: #f7f7f7;
+  --paper: #fafafa;
+  --accent: #f35422;
+  --accent-bright: #ff6a3d;
+  --accent-muted: #d63d12;
+  --brand: #f35422;
+  --nav-active: #f0f0f0;
+  --nav-active-fg: #0a0a0a;
+  --chrome: #a3a3a3;
+  /* Distinct from --bg so topbar reads as chrome (same idea as black-hole) */
+  --header-bg: #f0f0f0;
+  --section-head-bg: #f0f0f0;
+  --card: #ffffff;
+  --inset: #e8e8e8;
+  --blue: #0a0a0a;
+  --orange: #f35422;
+  --green: #1f7a4c;
+  --danger: #b42318;
+  --sev-critical: #b42318;
+  --sev-high: #c4320a;
+  --sev-medium: #b54708;
+  --sev-low: #667085;
+  --shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.92) inset,
+    0 14px 38px -16px rgba(20, 20, 19, 0.09);
+  --shadow-soft: 0 1px 0 rgba(10, 10, 10, 0.04);
+  --mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --sans: 'DM Sans', system-ui, sans-serif;
+  --display: 'Outfit', 'DM Sans', system-ui, sans-serif;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --radius-shell: 2px;
+  --radius-card: 2px;
+  color-scheme: light;
+}
+
+[data-theme='black-hole'] {
+  --fg: #f4f5f7;
+  --bg: #2c2e33;
+  --ink-on-accent: #0e1014;
+  --text: #f3f4f6;
+  --muted: #a1a6b0;
+  --faint: #7c818c;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --panel-bg: #35383f;
+  --paper: #26282d;
+  --card: #3a3d44;
+  --inset: #2a2c31;
+  --accent: #6ea2ff;
+  --accent-muted: #8eb6ff;
+  --header-bg: #24262b;
+  --blue: #5b9cff;
+  --orange: #e8a15a;
+  --green: #3dcc7a;
+  --danger: #e07a72;
+  --sev-critical: #f97066;
+  --sev-high: #f97066;
+  --sev-medium: #fdb022;
+  --sev-low: #98a2b3;
+  --nav-active: #6ea2ff;
+  --nav-active-fg: #0e1014;
+  --chrome: #f4f5f7;
+  --brand: #6ea2ff;
+  --shadow: 0 24px 50px -28px rgba(0, 0, 0, 0.55);
+  --shadow-soft: 0 18px 40px -28px rgba(0, 0, 0, 0.45);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --radius-shell: 6px;
+  --radius-card: 4px;
+  color-scheme: dark;
+}
+
+/* Earth — mint/forest green light theme (Theraphos-style clinical green) */
+[data-theme='earth'] {
+  --fg: #141816;
+  --bg: #ffffff;
+  --ink-on-accent: #ffffff;
+  --text: #1c2420;
+  --muted: #5a6b62;
+  --faint: #7a8a81;
+  --border: #e4ece7;
+  --border-strong: #c9d7ce;
+  --fail-border: #b42318;
+  --fail-ring: #912018;
+  --fail-bg: #fef3f2;
+  --panel-bg: #f2f7f4;
+  --paper: #f6faf7;
+  --accent: #2fbf78;
+  --accent-bright: #4ade95;
+  --accent-muted: #1f9a5c;
+  --brand: #2fbf78;
+  --nav-active: #e8f6ee;
+  --nav-active-fg: #0f1a14;
+  --chrome: #8aa095;
+  /* Distinct from --bg so topbar reads as chrome (same idea as black-hole) */
+  --header-bg: #eaf3ee;
+  --section-head-bg: #eaf3ee;
+  --card: #ffffff;
+  --inset: #dce8e1;
+  --blue: #1c2420;
+  --orange: #2fbf78;
+  --green: #2fbf78;
+  --danger: #b42318;
+  --sev-critical: #b42318;
+  --sev-high: #c4320a;
+  --sev-medium: #b54708;
+  --sev-low: #667085;
+  --shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.95) inset,
+    0 16px 40px -18px rgba(20, 60, 40, 0.1);
+  --shadow-soft: 0 1px 0 rgba(20, 60, 40, 0.04);
+  --mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --sans: 'DM Sans', system-ui, sans-serif;
+  --display: 'Outfit', 'DM Sans', system-ui, sans-serif;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --radius-shell: 12px;
+  --radius-card: 12px;
+  color-scheme: light;
+}

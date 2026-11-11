@@ -52,7 +52,7 @@ function asLinks(edges: ArchBoardEdge[] | undefined, spots: Spot[]): Link[] {
     .filter((edge) => edge.from && edge.to && ids.has(edge.from) && ids.has(edge.to))
 }
 
-export function boardToMermaid(nodes: Spot[], edges: Link[]): string {
+function boardToMermaid(nodes: Spot[], edges: Link[]): string {
   const lines = ['flowchart LR']
   for (const node of nodes) {
     const safe = node.id.replace(/[^\w]/g, '_')
@@ -68,7 +68,7 @@ export function boardToMermaid(nodes: Spot[], edges: Link[]): string {
 }
 
 /** Canonical Structurizr workspace — board + LLM share this object. */
-export function boardToArchitectureGraph(
+function boardToArchitectureGraph(
   nodes: Spot[],
   edges: Link[],
   meta?: ArchitectureGraph['meta'],
