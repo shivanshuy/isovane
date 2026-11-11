@@ -43,11 +43,15 @@ function engineerBrief(finding: Finding): string {
 export function FindingStory({
   finding,
   onOpenFix,
+  onSimulate,
   onRefresh,
+  showCodeFix = true,
 }: {
   finding: Finding
   onOpenFix: (findingId: string) => void
+  onSimulate?: (findingId: string) => void
   onRefresh: () => void
+  showCodeFix?: boolean
 }) {
   const solutions =
     finding.solutions?.length ? finding.solutions : finding.suggested_fix?.checklist || []
@@ -92,27 +96,53 @@ export function FindingStory({
 
   return (
     <article className="finding-story" key={finding.id}>
-      <header className="finding-story__hero">
-        <p className="finding-story__kicker">Finding story</p>
-        <h2>{finding.title}</h2>
-        <div className="finding-tags" aria-label="Issue fields">
-          <span
-            className={
-              finding.issue_type === 'AI_LLM'
-                ? 'finding-tag finding-tag--llm'
-                : 'finding-tag finding-tag--general'
-            }
-          >
-            type={finding.issue_type === 'AI_LLM' ? 'AI_LLM' : 'GENERAL'}
-          </span>
-          <span className={`finding-tag finding-tag--severity finding-tag--sev-${finding.severity}`}>
-            severity={(finding.severity_label || finding.severity || 'MEDIUM').toUpperCase()}
-          </span>
-          {finding.owasp.map((label) => (
-            <span key={label} className="finding-tag finding-tag--owasp">
-              {label}
+      <header className="pane-header finding-story__hero">
+        <div className="pane-header__main finding-story__hero-main">
+          <p className="finding-story__kicker">Finding story</p>
+          <h2>{finding.title}</h2>
+          <div className="finding-tags" aria-label="Issue fields">
+            <span
+              className={
+                finding.issue_type === 'AI_LLM'
+                  ? 'finding-tag finding-tag--llm'
+                  : 'finding-tag finding-tag--general'
+              }
+            >
+              type={finding.issue_type === 'AI_LLM' ? 'AI_LLM' : 'GENERAL'}
             </span>
-          ))}
+            <span className={`finding-tag finding-tag--severity finding-tag--sev-${finding.severity}`}>
+              severity={(finding.severity_label || finding.severity || 'MEDIUM').toUpperCase()}
+            </span>
+            {finding.owasp.map((label) => (
+              <span key={label} className="finding-tag finding-tag--owasp">
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="pane-header__actions finding-story__hero-actions">
+          {onSimulate ? (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => onSimulate(finding.id)}
+            >
+              Simulate
+            </button>
+          ) : null}
+          {showCodeFix ? (
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={async () => {
+                await createFix(finding.id)
+                onOpenFix(finding.id)
+                onRefresh()
+              }}
+            >
+              Code Fix
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -132,6 +162,11 @@ export function FindingStory({
         <h3>How an attacker can exploit it</h3>
         <ExploitPathScene preset={preset} />
         {finding.exploit ? <ExploitBody text={finding.exploit} /> : null}
+        {onSimulate ? (
+          <p className="hint finding-story__simulate-hint">
+            Use <strong>Simulate</strong> in the header to open a sealed lab for this gap class — not your repo.
+          </p>
+        ) : null}
       </section>
 
       {hasIncident ? (
@@ -146,31 +181,39 @@ export function FindingStory({
           </p>
           <div className="case-file__stack">
             {incidents.map((incident, index) => (
-              <div key={`${incident.headline}-${index}`} className="case-file__card">
-                <p className="case-file__index">
-                  Case {index + 1} of {incidents.length}
-                </p>
-                <h4 className="case-file__headline">{incident.headline}</h4>
-                {incident.when ? <p className="case-file__when">{incident.when}</p> : null}
-                {incident.story
-                  ? paragraphs(incident.story).map((part) => (
-                      <p key={part.slice(0, 48)} className="case-file__story">
-                        {part}
-                      </p>
-                    ))
-                  : null}
-                {incident.technical ? (
-                  <div className="case-file__tech">
-                    <p className="case-file__tech-label">Technical details</p>
-                    {paragraphs(incident.technical).map((part) => (
-                      <p key={part.slice(0, 48)}>{part}</p>
-                    ))}
-                  </div>
-                ) : null}
-                {incident.source ? (
-                  <p className="case-file__source">Source: {incident.source}</p>
-                ) : null}
-              </div>
+              <details
+                key={`${incident.headline}-${index}`}
+                className="case-file__card"
+                open={index === 0}
+              >
+                <summary className="case-file__summary">
+                  <p className="case-file__index">
+                    Case {index + 1} of {incidents.length}
+                  </p>
+                  <h4 className="case-file__headline">{incident.headline}</h4>
+                  {incident.when ? <p className="case-file__when">{incident.when}</p> : null}
+                </summary>
+                <div className="case-file__body">
+                  {incident.story
+                    ? paragraphs(incident.story).map((part) => (
+                        <p key={part.slice(0, 48)} className="case-file__story">
+                          {part}
+                        </p>
+                      ))
+                    : null}
+                  {incident.technical ? (
+                    <details className="case-file__tech" open>
+                      <summary className="case-file__tech-label">Technical details</summary>
+                      {paragraphs(incident.technical).map((part) => (
+                        <p key={part.slice(0, 48)}>{part}</p>
+                      ))}
+                    </details>
+                  ) : null}
+                  {incident.source ? (
+                    <p className="case-file__source">Source: {incident.source}</p>
+                  ) : null}
+                </div>
+              </details>
             ))}
           </div>
         </section>
@@ -189,7 +232,11 @@ export function FindingStory({
             </ul>
           </div>
         ) : (
-          <p className="muted">Open Dev fix for a copyable patch.</p>
+          <p className="muted">
+            {showCodeFix
+              ? 'Open Code Fix for a copyable patch.'
+              : 'Fix this on the architecture board, then Analyze board.'}
+          </p>
         )}
       </section>
 
@@ -306,19 +353,6 @@ export function FindingStory({
         </section>
       ) : null}
 
-      <div className="finding-story__actions">
-        <button
-          type="button"
-          className="btn btn--primary"
-          onClick={async () => {
-            await createFix(finding.id)
-            onOpenFix(finding.id)
-            onRefresh()
-          }}
-        >
-          Open Dev fix
-        </button>
-      </div>
     </article>
   )
 }

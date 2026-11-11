@@ -5,10 +5,12 @@ export type RouteView =
   | 'fix-dev'
   | 'fix-gate'
   | 'settings'
+  | 'playground'
 
 export type AppRoute =
   | { kind: 'welcome' }
   | { kind: 'home' }
+  | { kind: 'settings' }
   | { kind: 'workspace'; workspaceId: string; view: RouteView; findingId?: string }
 
 const VIEWS = new Set<RouteView>([
@@ -18,6 +20,7 @@ const VIEWS = new Set<RouteView>([
   'fix-dev',
   'fix-gate',
   'settings',
+  'playground',
 ])
 
 function normalizeHash(raw: string): string {
@@ -42,6 +45,10 @@ export function parseHash(hash = typeof window !== 'undefined' ? window.location
     return { kind: 'home' }
   }
 
+  if (parts[0] === 'settings') {
+    return { kind: 'settings' }
+  }
+
   if (parts[0] === 'w' && parts[1]) {
     const workspaceId = decodeURIComponent(parts[1])
     const viewPart = parts[2]
@@ -49,7 +56,11 @@ export function parseHash(hash = typeof window !== 'undefined' ? window.location
     let view: RouteView = 'analyze-code'
 
     if (viewPart === 'watch') view = 'watch'
-    else if (viewPart === 'settings') view = 'settings'
+    else if (viewPart === 'playground' || viewPart === 'simulate') view = 'playground'
+    // Legacy workspace settings URLs → app settings
+    else if (viewPart === 'settings') {
+      return { kind: 'settings' }
+    }
     else if (viewPart === 'fix' && lanePart === 'gate') view = 'fix-gate'
     else if (viewPart === 'fix' && (lanePart === 'dev' || !lanePart)) view = 'fix-dev'
     else if (viewPart === 'fix-dev') view = 'fix-dev'
@@ -69,6 +80,7 @@ export function parseHash(hash = typeof window !== 'undefined' ? window.location
 export function toHash(route: AppRoute): string {
   if (route.kind === 'welcome') return '#/welcome'
   if (route.kind === 'home') return '#/workspaces'
+  if (route.kind === 'settings') return '#/settings'
   const base = `#/w/${encodeURIComponent(route.workspaceId)}`
   const viewPath =
     route.view === 'fix-dev'
@@ -79,7 +91,9 @@ export function toHash(route: AppRoute): string {
           ? '/analyze/code'
           : route.view === 'analyze-arch'
             ? '/analyze/architecture'
-            : `/${route.view}`
+            : route.view === 'playground'
+              ? '/playground'
+              : `/${route.view}`
   const query = route.findingId ? `?f=${encodeURIComponent(route.findingId)}` : ''
   return `${base}${viewPath}${query}`
 }
@@ -98,6 +112,7 @@ export function routeEquals(a: AppRoute, b: AppRoute): boolean {
   if (a.kind !== b.kind) return false
   if (a.kind === 'welcome' || b.kind === 'welcome') return a.kind === b.kind
   if (a.kind === 'home' || b.kind === 'home') return a.kind === b.kind
+  if (a.kind === 'settings' || b.kind === 'settings') return a.kind === b.kind
   return (
     a.workspaceId === b.workspaceId &&
     a.view === b.view &&

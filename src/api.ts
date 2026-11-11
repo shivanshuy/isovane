@@ -104,13 +104,107 @@ export type FixPayload = {
 
 export type ArchMode = 'privacy' | 'workflow' | 'both'
 
+export type ArchBoardNode = {
+  id?: string
+  kind?: string
+  label?: string
+  path?: string
+  x?: number
+  y?: number
+}
+
+export type ArchBoardEdge = { from?: string; to?: string; kind?: string }
+
+/** Structurizr / C4 workspace — single source of truth for board + LLM. */
+export type ArchitectureGraph = {
+  id?: number
+  name?: string
+  description?: string
+  model: {
+    people?: Array<{
+      id: string
+      name: string
+      description?: string
+      tags?: string
+      properties?: Record<string, string>
+    }>
+    softwareSystems?: Array<{
+      id: string
+      name: string
+      description?: string
+      tags?: string
+      properties?: Record<string, string>
+    }>
+    relationships?: Array<{
+      id: string
+      sourceId: string
+      destinationId: string
+      description?: string
+      tags?: string
+      properties?: Record<string, string>
+    }>
+  }
+  views?: {
+    systemLandscapeViews?: Array<{
+      key?: string
+      elements?: Array<{ id: string; x?: number; y?: number }>
+      relationships?: Array<{ id: string }>
+    }>
+    configuration?: unknown
+  }
+  properties?: Record<string, string>
+  /** @deprecated legacy board shape — accepted by server normalize */
+  nodes?: ArchBoardNode[]
+  edges?: ArchBoardEdge[]
+  schema?: string
+  meta?: { source?: string; filename?: string; [key: string]: unknown }
+}
+
 export type ArchInventory = {
   source?: string
   mode?: string
-  nodes?: Array<{ id?: string; kind?: string; label?: string; path?: string }>
-  edges?: Array<{ from?: string; to?: string; kind?: string }>
+  nodes?: ArchBoardNode[]
+  edges?: ArchBoardEdge[]
+  board?: { nodes?: ArchBoardNode[]; edges?: ArchBoardEdge[] }
+  graph?: ArchitectureGraph
+  mermaid?: string
+  vision?: {
+    provider?: string
+    model?: string
+    status?: string
+    source?: string
+    error?: string
+    vision_error?: string
+    ocr_error?: string
+    extracted_chars?: number
+    edge_count?: number
+    ocr_labels?: number
+    ocr_edges?: number
+    seed?: string
+    reason?: string
+    message?: string
+  }
   counts?: Record<string, number>
   by_kind?: Record<string, string[]>
+  risk?: {
+    status?: string
+    provider?: string
+    model?: string
+    error?: string
+    message?: string
+  }
+  privacy_posture?: {
+    schema?: string
+    llm_vendors?: string[]
+    data_stores?: string[]
+    observability_sinks?: string[]
+    edge_count?: number
+    risky_egress_edges?: number
+    controls?: Record<string, boolean>
+    gaps?: string[]
+    kinds_present?: string[]
+  }
+  remediation_hints?: Array<{ title?: string; summary?: string; region?: string | null }>
 }
 
 export type AnalyzeResult = {
@@ -265,6 +359,25 @@ export function analyzeDiagramText(
   })
 }
 
+/** Re-analyze using Structurizr/C4 workspace (same object the board edits). */
+export function analyzeArchitectureGraph(
+  workspaceId: string,
+  graph: ArchitectureGraph,
+  mode: ArchMode = 'both',
+) {
+  return request<AnalyzeResult>('/analyze/diagram/json', {
+    method: 'POST',
+    body: JSON.stringify({
+      workspace_id: workspaceId,
+      format: 'architecture_graph',
+      mode,
+      graph,
+      content: JSON.stringify(graph),
+      description: JSON.stringify(graph),
+    }),
+  })
+}
+
 export function analyzeDiagramFile(
   workspaceId: string,
   file: File,
@@ -318,5 +431,91 @@ export function patchFinding(findingId: string, status: FindingStatus) {
   return request<Finding>(`/findings/${findingId}`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
+  })
+}
+
+export type SimulationPackSummary = {
+  id: string
+  title: string
+  mode: 'code' | 'prompt' | 'policy'
+  owasp: string[]
+  difficulty: string
+  summary: string
+  safety: string
+}
+
+export type SimulationField = {
+  id: string
+  label: string
+  type: string
+  default?: string
+}
+
+export type SimulationPack = SimulationPackSummary & {
+  inputs: SimulationField[]
+  presets: { id: string; label: string; values: Record<string, string> }[]
+}
+
+export type SimulationResult = {
+  pack_id: string
+  title: string
+  mode: string
+  safety: string
+  banner: string
+  inputs_used: Record<string, string>
+  steps: { title: string; detail: string; kind: string }[]
+  impact: string
+  stdout: string
+  gate_verdict: {
+    without_gate?: { verdict?: string; reason?: string }
+    with_isovane_gate?: { verdict?: string; reason?: string; policy_rule_id?: string }
+    lesson?: string
+    action?: { tool?: string; args?: Record<string, unknown>; source?: string; confirmed?: boolean }
+  }
+  teaching: string
+  related_incidents: { headline: string; when?: string; source?: string }[]
+}
+
+export type SimulationForFinding = {
+  finding_id: string
+  pack_id: string
+  pack: SimulationPack
+  seeded_inputs?: Record<string, string>
+  seeded_fields?: string[]
+  confidence?: 'high' | 'medium' | 'low' | string
+  match_note?: string
+  finding?: {
+    id: string
+    title: string
+    severity: string
+    severity_label?: string
+    category: string
+    summary: string
+    path?: string | null
+    owasp?: string[]
+  }
+}
+
+export function fetchSimulations() {
+  return request<{ banner: string; packs: SimulationPackSummary[] }>('/simulations')
+}
+
+export function fetchSimulationPack(packId: string) {
+  return request<SimulationPack>(`/simulations/${encodeURIComponent(packId)}`)
+}
+
+export function simulationForFinding(findingId: string) {
+  return request<SimulationForFinding>(
+    `/simulations/for-finding/${encodeURIComponent(findingId)}`,
+  )
+}
+
+export function runSimulation(
+  packId: string,
+  body: { inputs?: Record<string, string>; finding_id?: string },
+) {
+  return request<SimulationResult>(`/simulations/${encodeURIComponent(packId)}/run`, {
+    method: 'POST',
+    body: JSON.stringify(body),
   })
 }

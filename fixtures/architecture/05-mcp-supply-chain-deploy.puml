@@ -1,0 +1,29 @@
+@startuml
+title Deployment — unpinned MCP + shell tools (supply-chain / agency test)
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+
+rectangle "Slack / Teams UI" as UI
+rectangle "Supervisor agent" as Super
+rectangle "Worker agent" as Worker
+rectangle "MCP server\nnpx @org/mcp-server\n(unpinned latest)" as MCP
+rectangle "Shell / exec tool" as Shell
+rectangle "Browser tool" as Browser
+cloud "Anthropic Claude" as Claude
+cloud "Datadog observability" as DD
+
+UI --> Super
+Super --> Worker : a2a handoff
+Worker --> MCP
+Worker --> Shell
+Worker --> Browser
+Worker --> Claude : prompts
+Worker --> DD : full spans
+
+note bottom of MCP
+  Unpinned npx runner
+  No auth on MCP edge
+  Shell reachable from chat
+end note
+@enduml

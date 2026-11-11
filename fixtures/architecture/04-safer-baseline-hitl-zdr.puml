@@ -1,0 +1,29 @@
+@startuml
+title Deployment — safer baseline (HITL + DLP + ZDR contrast)
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+
+cloud "Org VPC (EU)" {
+  database "Customer PII DB" as PII
+  rectangle "DLP / redact gateway" as DLP
+  rectangle "Agent API" as Agent
+  rectangle "HITL approval" as HITL
+  rectangle "Chat UI" as UI
+}
+
+cloud "Azure OpenAI\n(EU region, ZDR / no-training)" as AOAI
+database "Private Link vault / KMS" as Vault
+
+UI --> Agent
+PII --> DLP : tokenize
+DLP --> Agent : redacted prompt
+Agent --> HITL : consequential plan
+HITL --> AOAI : confirmed only
+Agent --> Vault : secrets never in prompt
+
+note right of HITL
+  Explicit confirm before
+  send / pay / shell
+end note
+@enduml

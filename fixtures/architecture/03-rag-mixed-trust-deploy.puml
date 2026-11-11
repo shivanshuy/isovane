@@ -1,0 +1,28 @@
+@startuml
+title Deployment — mixed-trust RAG to private store (trust-boundary test)
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+
+actor "Internet user" as User
+cloud "Public web / email inbox" as Public
+rectangle "Ingest pipeline" as Ingest
+database "Vector store\n(public + private mixed)" as Vector
+rectangle "RAG agent\n(LLM)" as Agent
+database "Private billing DB\n(API keys, PII)" as Private
+rectangle "send_email tool" as Mail
+cloud "OpenAI" as OpenAI
+
+User --> Public
+Public --> Ingest : untrusted docs
+Ingest --> Vector : embed (no trust labels)
+Private --> Vector : private chunks
+Vector --> Agent : top-k retrieve
+Agent --> OpenAI : prompt + context
+Agent --> Mail : reply to user
+
+note right of Vector
+  Public poison + private secrets
+  in one corpus — no trust boundary
+end note
+@enduml

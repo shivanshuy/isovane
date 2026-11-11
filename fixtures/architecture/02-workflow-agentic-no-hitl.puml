@@ -1,0 +1,26 @@
+@startuml
+title Workflow — UI → agents → MCP/tools without HITL (workflow test)
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+
+rectangle "Chat UI" as UI
+rectangle "Orchestrator agent" as Orch
+rectangle "Research agent" as Research
+rectangle "Writer agent" as Writer
+rectangle "MCP filesystem + browser" as MCP
+rectangle "Tools\nemail + shell + refund\npermissions: *" as Tools
+
+UI --> Orch
+Orch --> Research
+Orch --> Writer
+Research --> MCP
+Writer --> Tools
+Research -[#red]-> Writer : a2a handoff\n(no auth / mTLS)
+
+note bottom of Tools
+  Wildcard tools (*)
+  No HITL / approval node
+  Shell + email consequential
+end note
+@enduml

@@ -57,29 +57,31 @@ export function WatchPane({
 
   return (
     <div className="pane pane--watch">
-      <section className="card watch-bar">
-        <div>
+      <header className="pane-header watch-bar">
+        <div className="pane-header__main">
           <strong>Runtime gate</strong>
           <p className="muted">Verdicts sit outside the model. Deny → Gate fix (policy).</p>
         </div>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={watching}
-            onChange={(event) => onWatching(event.target.checked)}
-            aria-label="Watch running"
-          />
-          <span />
-        </label>
-        <span className={watching ? 'run run--on' : 'run'}>{watching ? 'Watching' : 'Paused'}</span>
-        <button className="btn" type="button" disabled={busy || !watching} onClick={simulate}>
-          Simulate poison send
-        </button>
-        <button className="btn" type="button" disabled={busy} onClick={hunt}>
-          Run hunt pack
-        </button>
-        {error ? <span className="err">{error}</span> : null}
-      </section>
+        <div className="pane-header__actions">
+          <span className={watching ? 'run run--on' : 'run'}>{watching ? 'Watching' : 'Paused'}</span>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={watching}
+              onChange={(event) => onWatching(event.target.checked)}
+              aria-label="Watch running"
+            />
+            <span />
+          </label>
+          <button className="btn" type="button" disabled={busy || !watching} onClick={simulate}>
+            Try poison send
+          </button>
+          <button className="btn btn--primary" type="button" disabled={busy} onClick={hunt}>
+            Run hunt pack
+          </button>
+        </div>
+      </header>
+      {error ? <p className="err">{error}</p> : null}
 
       <section className="card card--stack">
         <header className="card__title">
@@ -102,7 +104,7 @@ export function WatchPane({
               {event.verdict === 'deny' && event.finding_id ? (
                 <button
                   type="button"
-                  className="btn btn--tiny"
+                  className="btn"
                   onClick={async () => {
                     await createFix(event.finding_id!)
                     onOpenFix(event.finding_id!)

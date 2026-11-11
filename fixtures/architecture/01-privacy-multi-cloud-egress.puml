@@ -1,0 +1,31 @@
+@startuml
+title Deployment — multi-cloud LLM egress (privacy test)
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+skinparam packageStyle rectangle
+
+cloud "Org VPC (EU)" {
+  database "Customer PII DB\n(CRM + tickets)" as PII
+  rectangle "Agent API\n(orchestrator)" as Agent
+  rectangle "Chat UI" as UI
+}
+
+cloud "OpenAI (US)" as OpenAI
+cloud "Anthropic (US)" as Anthropic
+cloud "LangSmith traces" as Logs
+cloud "Salesforce CRM" as SF
+
+UI --> Agent : user prompts
+PII --> Agent : customer docs
+SF --> Agent : ticket sync
+Agent --> OpenAI : prompts + docs
+Agent --> Anthropic : fallback model
+Agent --> Logs : full prompt spans
+
+note right of Agent
+  No redact / DLP gateway
+  No ZDR / no-training marker
+  Dual-vendor fan-out
+end note
+@enduml

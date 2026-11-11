@@ -302,7 +302,7 @@ function spawnSpider(net: Network): Spider {
       return dots
     },
 
-    tick(t, w, h) {
+    tick(_t, w, h) {
       ringR = w / 140
       const dt = 1 / 60
 
@@ -382,7 +382,7 @@ function spawnSpider(net: Network): Spider {
       }
     },
 
-    collectSilk(w, h, linePos, lineCount) {
+    collectSilk(_w, h, linePos, lineCount) {
       const mapY = (py: number) => h - py
       const sx = this.x()
       const sy = this.y()

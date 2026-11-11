@@ -22,6 +22,7 @@ import {
 } from './data'
 import { AnalyzeArchitecturePane, AnalyzeCodePane } from './panes/Analyze'
 import { FixPane } from './panes/Fix'
+import { PlaygroundPane } from './panes/Playground'
 import { WatchPane } from './panes/Watch'
 import { Landing } from './pages/Landing'
 import { navigate, parseHash, routeEquals, type AppRoute, type RouteView } from './routing'
@@ -33,17 +34,35 @@ const APP_THEMES: { id: AppTheme; label: string }[] = [
   { id: 'earth', label: 'Earth' },
   { id: 'black-hole', label: 'Black Hole' },
 ]
-type Pane = 'welcome' | 'home' | 'overview' | 'analyze-code' | 'analyze-arch' | 'watch' | 'fix' | 'settings'
+type Pane =
+  | 'welcome'
+  | 'home'
+  | 'overview'
+  | 'analyze-code'
+  | 'analyze-arch'
+  | 'watch'
+  | 'fix'
+  | 'settings'
+  | 'playground'
 type LogFilter = 'all' | 'web' | 'emails'
-type NavId = 'home' | 'analyze-code' | 'analyze-arch' | 'watch' | 'fix-dev' | 'fix-gate' | 'settings'
+type NavId =
+  | 'home'
+  | 'analyze-code'
+  | 'analyze-arch'
+  | 'watch'
+  | 'fix-dev'
+  | 'fix-gate'
+  | 'settings'
+  | 'playground'
 type FixLane = 'analyze' | 'watch'
 
 function viewToPane(view: RouteView): { pane: Pane; nav: NavId; fixLane: FixLane } {
   if (view === 'watch') return { pane: 'watch', nav: 'watch', fixLane: 'watch' }
-  if (view === 'settings') return { pane: 'settings', nav: 'settings', fixLane: 'analyze' }
+  if (view === 'playground') return { pane: 'playground', nav: 'playground', fixLane: 'analyze' }
   if (view === 'fix-dev') return { pane: 'fix', nav: 'fix-dev', fixLane: 'analyze' }
   if (view === 'fix-gate') return { pane: 'fix', nav: 'fix-gate', fixLane: 'watch' }
   if (view === 'analyze-arch') return { pane: 'analyze-arch', nav: 'analyze-arch', fixLane: 'analyze' }
+  // settings is app-level (route.kind === 'settings'), not a workspace view
   return { pane: 'analyze-code', nav: 'analyze-code', fixLane: 'analyze' }
 }
 
@@ -92,7 +111,15 @@ function Mark({ icon }: { icon: WorkspaceIcon }) {
 function NavIcon({
   kind,
 }: {
-  kind: 'analyze-code' | 'analyze-arch' | 'watch' | 'fix-dev' | 'fix-gate' | 'settings' | 'home'
+  kind:
+    | 'analyze-code'
+    | 'analyze-arch'
+    | 'watch'
+    | 'fix-dev'
+    | 'fix-gate'
+    | 'settings'
+    | 'home'
+    | 'playground'
 }) {
   if (kind === 'home') {
     return (
@@ -153,6 +180,21 @@ function NavIcon({
       </span>
     )
   }
+  if (kind === 'playground') {
+    return (
+      <span className="nav__glyph" aria-hidden="true">
+        <svg viewBox="0 0 16 16" fill="none">
+          <path
+            d="M3 11.5 8 3.5l5 8H3Z"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinejoin="round"
+          />
+          <circle cx="8" cy="10" r="1.1" fill="currentColor" />
+        </svg>
+      </span>
+    )
+  }
   return (
     <span className="nav__glyph" aria-hidden="true">
       <svg viewBox="0 0 16 16" fill="none">
@@ -173,9 +215,10 @@ function paneEyebrow(pane: Pane, fixLane: FixLane) {
   if (pane === 'analyze-code') return 'Find in code before ship'
   if (pane === 'analyze-arch') return 'Find in architecture before ship'
   if (pane === 'watch') return 'Gate outside the model'
+  if (pane === 'playground') return 'Sealed attack labs · not your repository'
   if (pane === 'fix' && fixLane === 'analyze') return 'Dev-time patch · code / prompt / architecture'
   if (pane === 'fix' && fixLane === 'watch') return 'Runtime patch · policy / sidecar'
-  if (pane === 'settings') return 'Workspace'
+  if (pane === 'settings') return 'App'
   return 'Signal health'
 }
 
@@ -223,9 +266,18 @@ export default function App() {
   const [workspaceList, setWorkspaceList] = useState<Workspace[]>([])
   const [workspacesLoading, setWorkspacesLoading] = useState(true)
   const [route, setRoute] = useState<AppRoute>(() => readInitialRoute())
-  const [running, setRunning] = useState(true)
+  const [running] = useState(true)
   const [watching, setWatching] = useState(true)
-  const [startWithApp, setStartWithApp] = useState(false)
+  const [watchGateEnabled, setWatchGateEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true
+    const stored = window.localStorage.getItem('isovane-feature-watch-gate')
+    if (stored === '0' || stored === 'false') return false
+    return true
+  })
+
+  useEffect(() => {
+    window.localStorage.setItem('isovane-feature-watch-gate', watchGateEnabled ? '1' : '0')
+  }, [watchGateEnabled])
   const [logFilter, setLogFilter] = useState<LogFilter>('all')
   const [findings, setFindings] = useState<Finding[]>([])
   const [traces, setTraces] = useState<Trace[]>([])
@@ -238,8 +290,9 @@ export default function App() {
   const workspaceId = route.kind === 'workspace' ? route.workspaceId : null
   const mapped = route.kind === 'workspace' ? viewToPane(route.view) : null
   const onWelcome = route.kind === 'welcome'
-  const pane: Pane = mapped?.pane ?? (onWelcome ? 'welcome' : 'home')
-  const nav: NavId = mapped?.nav ?? 'home'
+  const onSettings = route.kind === 'settings'
+  const pane: Pane = mapped?.pane ?? (onWelcome ? 'welcome' : onSettings ? 'settings' : 'home')
+  const nav: NavId = mapped?.nav ?? (onSettings ? 'settings' : 'home')
   const fixLane: FixLane = mapped?.fixLane ?? 'analyze'
 
   const workspace = workspaceId
@@ -251,14 +304,14 @@ export default function App() {
 
   const applyRoute = useCallback((next: AppRoute) => {
     setRoute((current) => (routeEquals(current, next) ? current : next))
-    if (next.kind === 'home' || next.kind === 'welcome') {
+    if (next.kind === 'home' || next.kind === 'welcome' || next.kind === 'settings') {
       setFindings([])
       setTraces([])
       setGate({ open: 0, denies: 0, ci: 0 })
       setFixFocus(null)
       return
     }
-    setFixFocus(next.findingId ?? null)
+    setFixFocus(next.kind === 'workspace' ? next.findingId ?? null : null)
   }, [])
 
   useEffect(() => {
@@ -348,6 +401,11 @@ export default function App() {
     applyRoute({ kind: 'home' })
   }
 
+  const goSettings = () => {
+    navigate({ kind: 'settings' })
+    applyRoute({ kind: 'settings' })
+  }
+
   const openWorkspace = (id: string) => {
     const next: AppRoute = { kind: 'workspace', workspaceId: id, view: 'analyze-code' }
     navigate(next)
@@ -357,6 +415,26 @@ export default function App() {
   const goView = (viewName: RouteView) => {
     if (!workspaceId) return
     const next: AppRoute = { kind: 'workspace', workspaceId, view: viewName }
+    navigate(next)
+    applyRoute(next)
+  }
+
+  useEffect(() => {
+    if (watchGateEnabled || !workspaceId) return
+    if (pane === 'watch' || (pane === 'fix' && fixLane === 'watch')) {
+      goView('analyze-code')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchGateEnabled, pane, fixLane, workspaceId])
+
+  const openSimulate = (findingId?: string) => {
+    if (!workspaceId) return
+    const next: AppRoute = {
+      kind: 'workspace',
+      workspaceId,
+      view: 'playground',
+      findingId,
+    }
     navigate(next)
     applyRoute(next)
   }
@@ -465,6 +543,14 @@ export default function App() {
           >
             Workspaces
           </button>
+          <button
+            type="button"
+            className={onSettings ? 'topbar__link topbar__link--on' : 'topbar__link'}
+            aria-current={onSettings ? 'page' : undefined}
+            onClick={goSettings}
+          >
+            Settings
+          </button>
         </nav>
         {themeSwitcher}
       </header>
@@ -475,7 +561,9 @@ export default function App() {
             ? 'frame'
             : onWelcome
               ? 'frame frame--landing'
-              : 'frame frame--home'
+              : onSettings
+                ? 'frame frame--home'
+                : 'frame frame--home'
         }
       >
         {inWorkspace ? (
@@ -533,50 +621,50 @@ export default function App() {
                 onClick={() => openFix('analyze')}
               >
                 <NavIcon kind="fix-dev" />
-                Dev fix
+                Code Fix
                 <em>{openDevFixes}</em>
               </button>
             </div>
 
-            <div
-              className={
-                nav === 'watch' || nav === 'fix-gate' ? 'nav__flow nav__flow--on' : 'nav__flow'
-              }
-            >
-              <p className="nav__flow-label">Watch → gate</p>
-              <button
-                className={nav === 'watch' ? 'nav__link nav__link--on' : 'nav__link'}
-                type="button"
-                onClick={() => goView('watch')}
-              >
-                <NavIcon kind="watch" />
-                Watch
-                <em>{gate.denies} denies</em>
-              </button>
-              <button
+            {watchGateEnabled ? (
+              <div
                 className={
-                  nav === 'fix-gate'
-                    ? 'nav__link nav__link--sub nav__link--on'
-                    : 'nav__link nav__link--sub'
+                  nav === 'watch' || nav === 'fix-gate' ? 'nav__flow nav__flow--on' : 'nav__flow'
                 }
-                type="button"
-                onClick={() => openFix('watch')}
               >
-                <NavIcon kind="fix-gate" />
-                Gate fix
-                <em>{openGateFixes}</em>
-              </button>
-            </div>
+                <p className="nav__flow-label">Watch → gate</p>
+                <button
+                  className={nav === 'watch' ? 'nav__link nav__link--on' : 'nav__link'}
+                  type="button"
+                  onClick={() => goView('watch')}
+                >
+                  <NavIcon kind="watch" />
+                  Watch
+                  <em>{gate.denies} denies</em>
+                </button>
+                <button
+                  className={
+                    nav === 'fix-gate'
+                      ? 'nav__link nav__link--sub nav__link--on'
+                      : 'nav__link nav__link--sub'
+                  }
+                  type="button"
+                  onClick={() => openFix('watch')}
+                >
+                  <NavIcon kind="fix-gate" />
+                  Gate fix
+                  <em>{openGateFixes}</em>
+                </button>
+              </div>
+            ) : null}
 
             <button
-              className={
-                nav === 'settings' ? 'nav__link nav__link--foot nav__link--on' : 'nav__link nav__link--foot'
-              }
+              className={nav === 'playground' ? 'nav__link nav__link--on' : 'nav__link'}
               type="button"
-              onClick={() => goView('settings')}
+              onClick={() => goView('playground')}
             >
-              <NavIcon kind="settings" />
-              Settings
+              <NavIcon kind="playground" />
+              Playground
             </button>
           </aside>
         ) : null}
@@ -603,12 +691,19 @@ export default function App() {
           ) : null}
 
           {!restoringWorkspace && onWelcome ? <Landing onEnter={goHome} /> : null}
-          {!restoringWorkspace && !onWelcome && (pane === 'home' || !inWorkspace) ? (
+          {!restoringWorkspace && onSettings ? (
+            <Settings
+              watchGateEnabled={watchGateEnabled}
+              onWatchGateEnabled={setWatchGateEnabled}
+            />
+          ) : null}
+          {!restoringWorkspace && !onWelcome && !onSettings && (pane === 'home' || !inWorkspace) ? (
             <Home
               workspaces={workspaceList}
               loading={workspacesLoading}
               onOpen={openWorkspace}
               onCreate={handleCreate}
+              onUpdate={handleUpdate}
               onDelete={handleDelete}
             />
           ) : null}
@@ -628,6 +723,12 @@ export default function App() {
               findings={findings}
               onRefresh={refreshSecurity}
               onOpenFix={(id) => openFix('analyze', id)}
+              onSimulate={openSimulate}
+              initialFindingId={
+                route.kind === 'workspace' && route.view === 'analyze-code'
+                  ? route.findingId
+                  : null
+              }
             />
           ) : null}
           {inWorkspace && pane === 'analyze-arch' ? (
@@ -636,6 +737,12 @@ export default function App() {
               findings={findings}
               onRefresh={refreshSecurity}
               onOpenFix={(id) => openFix('analyze', id)}
+              onSimulate={openSimulate}
+              initialFindingId={
+                route.kind === 'workspace' && route.view === 'analyze-arch'
+                  ? route.findingId
+                  : null
+              }
             />
           ) : null}
           {inWorkspace && pane === 'watch' ? (
@@ -648,27 +755,45 @@ export default function App() {
               onOpenFix={(id) => openFix('watch', id)}
             />
           ) : null}
+          {inWorkspace && pane === 'playground' ? (
+            <PlaygroundPane
+              findingId={
+                route.kind === 'workspace' && route.view === 'playground'
+                  ? route.findingId
+                  : null
+              }
+              findings={findings.filter(
+                (f) => f.status === 'open' || f.status === 'accepted',
+              )}
+              onSelectFinding={(id) => openSimulate(id)}
+              onOpenFix={(id) => openFix('analyze', id)}
+              onOpenWatch={() => goView('watch')}
+              onOpenAnalyze={() => {
+                if (!workspaceId) return
+                const fid =
+                  route.kind === 'workspace' && route.view === 'playground'
+                    ? route.findingId
+                    : undefined
+                const target = fid ? findings.find((f) => f.id === fid) : undefined
+                const view: RouteView =
+                  target?.category === 'architecture' ? 'analyze-arch' : 'analyze-code'
+                const next: AppRoute = {
+                  kind: 'workspace',
+                  workspaceId,
+                  view,
+                  findingId: fid,
+                }
+                navigate(next)
+                applyRoute(next)
+              }}
+            />
+          ) : null}
           {inWorkspace && pane === 'fix' ? (
             <FixPane
               findings={findings}
               focusId={fixFocus}
               initialLane={fixLane}
               onRefresh={refreshSecurity}
-            />
-          ) : null}
-          {inWorkspace && pane === 'settings' ? (
-            <Settings
-              workspace={workspace}
-              running={running}
-              onRunning={setRunning}
-              startWithApp={startWithApp}
-              onStartWithApp={setStartWithApp}
-              onSave={async (payload) => {
-                await handleUpdate(workspace.id, payload)
-              }}
-              onRemove={() => {
-                void handleDelete(workspace.id)
-              }}
             />
           ) : null}
         </main>
@@ -682,12 +807,14 @@ function Home({
   loading,
   onOpen,
   onCreate,
+  onUpdate,
   onDelete,
 }: {
   workspaces: Workspace[]
   loading: boolean
   onOpen: (id: string) => void
   onCreate: (payload: { name: string; description: string }) => Promise<void>
+  onUpdate: (id: string, payload: { name: string; description: string }) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }) {
   const [name, setName] = useState('')
@@ -695,6 +822,10 @@ function Home({
   const [busy, setBusy] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [menuId, setMenuId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editBusy, setEditBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -736,20 +867,22 @@ function Home({
 
   return (
     <div className="home">
-      <section className="stage__head home__head">
-        <div>
+      <section className="pane-header stage__head home__head">
+        <div className="pane-header__main">
           <p className="stage__eyebrow">All agents</p>
           <h1>Workspaces</h1>
           <p>Select an agent to secure, or create a new workspace.</p>
         </div>
-        <button
-          className="btn btn--accent btn--sm"
-          type="submit"
-          form="workspace-create"
-          disabled={busy}
-        >
-          {busy ? 'Creating…' : 'Create workspace'}
-        </button>
+        <div className="pane-header__actions">
+          <button
+            className="btn btn--primary"
+            type="submit"
+            form="workspace-create"
+            disabled={busy}
+          >
+            {busy ? 'Creating…' : 'Create workspace'}
+          </button>
+        </div>
       </section>
 
       <form
@@ -812,6 +945,22 @@ function Home({
                   <button
                     type="button"
                     role="menuitem"
+                    className="home__menu-item"
+                    disabled={deletingId === item.id || editBusy}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      setMenuId(null)
+                      setEditingId(item.id)
+                      setEditName(item.name)
+                      setEditDescription(item.description || '')
+                      setError(null)
+                    }}
+                  >
+                    Update
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
                     className="home__menu-item home__menu-item--danger"
                     disabled={deletingId === item.id}
                     onClick={(event) => {
@@ -830,6 +979,54 @@ function Home({
                 </div>
               ) : null}
             </div>
+            {editingId === item.id ? (
+              <form
+                className="home__edit"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  if (!editName.trim()) {
+                    setError('Give the workspace a name.')
+                    return
+                  }
+                  setEditBusy(true)
+                  setError(null)
+                  void onUpdate(item.id, {
+                    name: editName.trim(),
+                    description: editDescription.trim(),
+                  })
+                    .then(() => setEditingId(null))
+                    .catch((err) => {
+                      setError(err instanceof Error ? err.message : 'Could not update workspace')
+                    })
+                    .finally(() => setEditBusy(false))
+                }}
+              >
+                <label>
+                  Name
+                  <input
+                    value={editName}
+                    onChange={(event) => setEditName(event.target.value)}
+                    autoComplete="off"
+                  />
+                </label>
+                <label>
+                  Description
+                  <textarea
+                    value={editDescription}
+                    onChange={(event) => setEditDescription(event.target.value)}
+                    rows={2}
+                  />
+                </label>
+                <div className="home__edit-actions">
+                  <button className="btn" type="button" disabled={editBusy} onClick={() => setEditingId(null)}>
+                    Cancel
+                  </button>
+                  <button className="btn btn--primary" type="submit" disabled={editBusy}>
+                    {editBusy ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              </form>
+            ) : null}
           </li>
         ))}
       </ul>
@@ -965,100 +1162,42 @@ function Overview({
 }
 
 function Settings({
-  workspace,
-  running,
-  onRunning,
-  startWithApp,
-  onStartWithApp,
-  onSave,
-  onRemove,
+  watchGateEnabled,
+  onWatchGateEnabled,
 }: {
-  workspace: Workspace
-  running: boolean
-  onRunning: (value: boolean) => void
-  startWithApp: boolean
-  onStartWithApp: (value: boolean) => void
-  onSave: (payload: { name: string; description: string }) => Promise<void>
-  onRemove: () => void
+  watchGateEnabled: boolean
+  onWatchGateEnabled: (value: boolean) => void
 }) {
-  const [name, setName] = useState(workspace.name)
-  const [description, setDescription] = useState(workspace.description)
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-
-  useEffect(() => {
-    setName(workspace.name)
-    setDescription(workspace.description)
-    setMessage(null)
-  }, [workspace.id, workspace.name, workspace.description])
-
-  const save = async () => {
-    if (!name.trim()) {
-      setMessage('Name is required.')
-      return
-    }
-    setSaving(true)
-    setMessage(null)
-    try {
-      await onSave({ name: name.trim(), description: description.trim() })
-      setMessage('Saved.')
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Could not save workspace')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   return (
     <div className="settings">
-      <div className="settings__bar">
-        <button className="btn btn--accent btn--sm" type="button" disabled={saving} onClick={() => void save()}>
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-        <span className={running ? 'run run--on' : 'run'}>{running ? 'Running' : 'Stopped'}</span>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={running}
-            onChange={(event) => onRunning(event.target.checked)}
-            aria-label="Running"
-          />
-          <span />
-        </label>
-      </div>
+      <header className="pane-header settings__bar">
+        <div className="pane-header__main">
+          <strong>App settings</strong>
+          <p className="muted">Preferences for this Isovane install (not per workspace).</p>
+        </div>
+      </header>
 
       <section className="card form">
-        <h2>Workspace</h2>
-        <label>
-          Name
-          <input value={name} onChange={(event) => setName(event.target.value)} />
-        </label>
-        <label>
-          Description
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            rows={3}
-          />
-        </label>
-        {message ? <p className="hint">{message}</p> : null}
+        <h2>Features</h2>
+        <p className="muted">
+          Toggle product areas in the workspace nav. Changes apply immediately on this browser.
+        </p>
         <div className="form__row">
-          <span>Start when Isovane opens</span>
+          <div>
+            <strong>Watch → gate</strong>
+            <p className="muted">Show Watch and Gate fix in the sidebar.</p>
+          </div>
           <label className="switch">
             <input
               type="checkbox"
-              checked={startWithApp}
-              onChange={(event) => onStartWithApp(event.target.checked)}
-              aria-label="Start when Isovane opens"
+              checked={watchGateEnabled}
+              onChange={(event) => onWatchGateEnabled(event.target.checked)}
+              aria-label="Enable Watch → gate"
             />
             <span />
           </label>
         </div>
       </section>
-
-      <button className="danger" type="button" onClick={onRemove}>
-        Remove workspace…
-      </button>
     </div>
   )
 }

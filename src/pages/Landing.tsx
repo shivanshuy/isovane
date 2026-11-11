@@ -55,18 +55,16 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
           <div className="landing__liquid-mist" aria-hidden="true" />
           <div className="landing__liquid-sheen" aria-hidden="true" />
         </div>
-        <div className="landing__frost" aria-hidden="true" />
-
         <section className="landing__hero landing__hero--plexus">
           <div className="landing__copy">
             <p className="landing__kicker story-rise">Agent security</p>
             <h1 className="landing__brand story-rise story-rise--2">Isovane</h1>
             <p className="landing__line story-rise story-rise--3">
-              Agent risk, explained
+              Intelligence without incidents
             </p>
             <p className="landing__lede story-rise story-rise--3">
-              Find risky agent code before ship, gate tools at runtime, and fix with stories that
-              hold up for both novices and security engineers.
+              Security for AI, LLMs, and agents — assess risk in code, enforce controls at runtime,
+              and remediate before exposure reaches production.
             </p>
             <div className="landing__cta story-rise story-rise--4">
               <button type="button" className="btn btn--primary" onClick={onEnter}>
@@ -90,7 +88,7 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
           <div className="landing__loop-item story-rise story-rise--3">
             <span className="landing__loop-num">03</span>
             <strong>Fix</strong>
-            <span>Patch with a story</span>
+            <span>Close the risk</span>
           </div>
         </nav>
       </div>

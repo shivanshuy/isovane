@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   analyzeArchive,
   analyzeCode,
+  analyzeArchitectureGraph,
   analyzeDiagramFile,
   analyzeDiagramText,
   createFix,
@@ -9,6 +10,7 @@ import {
   type ArchMode,
   type Finding,
 } from '../api'
+import { ArchDiagramBoard } from '../components/ArchDiagramBoard'
 import { FindingStory } from './FindingStory'
 
 const DIAGRAM_ACCEPT =
@@ -49,12 +51,12 @@ const ARCH_MODES: { id: Exclude<ArchMode, 'both'>; label: string; hint: string }
   {
     id: 'privacy',
     label: 'Deployment / network',
-    hint: 'Org → cloud LLM residency, PII egress, multi-vendor hops',
+    hint: 'Upload → recreate board → fix egress / residency issues on the diagram',
   },
   {
     id: 'workflow',
     label: 'Workflow graph',
-    hint: 'UI → agents → MCP → tools (Agentic Radar–style)',
+    hint: 'Upload → recreate board → fix HITL / MCP / tool risks by editing the graph',
   },
 ]
 
@@ -122,13 +124,17 @@ function FindingsBoard({
   selected,
   onSelect,
   onOpenFix,
+  onSimulate,
   onRefresh,
+  showCodeFix = true,
 }: {
   open: Finding[]
   selected: Finding | null
   onSelect: (finding: Finding) => void
   onOpenFix: (findingId: string) => void
+  onSimulate?: (findingId: string) => void
   onRefresh: () => void
+  showCodeFix?: boolean
 }) {
   const { llm, general } = groupFindings(open)
 
@@ -154,6 +160,7 @@ function FindingsBoard({
                 onSelect={onSelect}
                 onOpenFix={onOpenFix}
                 onRefresh={onRefresh}
+                showCodeFix={showCodeFix}
               />
               <FindingGroup
                 title="GENERAL"
@@ -162,6 +169,7 @@ function FindingsBoard({
                 onSelect={onSelect}
                 onOpenFix={onOpenFix}
                 onRefresh={onRefresh}
+                showCodeFix={showCodeFix}
               />
             </div>
           )}
@@ -169,7 +177,13 @@ function FindingsBoard({
 
         <section className="card card--stack detail detail--story">
           {selected ? (
-            <FindingStory finding={selected} onOpenFix={onOpenFix} onRefresh={onRefresh} />
+            <FindingStory
+              finding={selected}
+              onOpenFix={onOpenFix}
+              onSimulate={onSimulate}
+              onRefresh={onRefresh}
+              showCodeFix={showCodeFix}
+            />
           ) : (
             <p className="empty">Select an issue to open its story.</p>
           )}
@@ -187,6 +201,7 @@ function FindingGroup({
   onOpenFix,
   onRefresh,
   defaultOpen = false,
+  showCodeFix = true,
 }: {
   title: string
   items: Finding[]
@@ -195,6 +210,7 @@ function FindingGroup({
   onOpenFix: (findingId: string) => void
   onRefresh: () => void
   defaultOpen?: boolean
+  showCodeFix?: boolean
 }) {
   const selectedHere = Boolean(selected && items.some((item) => item.id === selected.id))
   const [open, setOpen] = useState(defaultOpen)
@@ -225,31 +241,51 @@ function FindingGroup({
           <ul className="findings">
             {items.map((finding) => (
               <li key={finding.id}>
-                <button
-                  type="button"
+                <div
                   className={selected?.id === finding.id ? 'finding finding--on' : 'finding'}
-                  onClick={() => onSelect(finding)}
                 >
-                  <strong>{finding.title}</strong>
-                  <span className={`finding-tag finding-tag--${findingType(finding) === 'AI_LLM' ? 'llm' : 'general'}`}>
-                    type={findingType(finding)}
-                  </span>
-                  <span className={`finding-tag finding-tag--severity finding-tag--sev-${finding.severity}`}>
-                    severity={severityBadge(finding)}
-                  </span>
-                  <em>{findingDescription(finding)}</em>
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--tiny"
-                  onClick={async () => {
-                    await createFix(finding.id)
-                    onOpenFix(finding.id)
-                    onRefresh()
-                  }}
-                >
-                  Dev fix
-                </button>
+                  <div className="finding__head">
+                    <button
+                      type="button"
+                      className="finding__title-btn"
+                      onClick={() => onSelect(finding)}
+                    >
+                      <strong>{finding.title}</strong>
+                    </button>
+                    {showCodeFix ? (
+                      <button
+                        type="button"
+                        className="btn finding__fix"
+                        onClick={async () => {
+                          await createFix(finding.id)
+                          onOpenFix(finding.id)
+                          onRefresh()
+                        }}
+                      >
+                        Code Fix
+                      </button>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className="finding__select"
+                    onClick={() => onSelect(finding)}
+                  >
+                    <span className="finding-tags">
+                      <span
+                        className={`finding-tag finding-tag--${findingType(finding) === 'AI_LLM' ? 'llm' : 'general'}`}
+                      >
+                        type={findingType(finding)}
+                      </span>
+                      <span
+                        className={`finding-tag finding-tag--severity finding-tag--sev-${finding.severity}`}
+                      >
+                        severity={severityBadge(finding)}
+                      </span>
+                    </span>
+                    <em>{findingDescription(finding)}</em>
+                  </button>
+                </div>
               </li>
             ))}
             {items.length === 0 ? <li className="empty">None in this group.</li> : null}
@@ -265,11 +301,15 @@ export function AnalyzeCodePane({
   findings,
   onRefresh,
   onOpenFix,
+  onSimulate,
+  initialFindingId,
 }: {
   workspaceId: string
   findings: Finding[]
   onRefresh: () => void
   onOpenFix: (findingId: string) => void
+  onSimulate?: (findingId: string) => void
+  initialFindingId?: string | null
 }) {
   const [codeMode, setCodeMode] = useState<CodeMode>('folder')
   const [gitUrl, setGitUrl] = useState('')
@@ -277,8 +317,19 @@ export function AnalyzeCodePane({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const open = filterFindings(findings, 'code')
-  const [selected, setSelected] = useState<Finding | null>(open[0] ?? null)
+  const [selected, setSelected] = useState<Finding | null>(() => {
+    if (initialFindingId) {
+      return open.find((item) => item.id === initialFindingId) ?? open[0] ?? null
+    }
+    return open[0] ?? null
+  })
   const zipRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!initialFindingId) return
+    const focused = open.find((item) => item.id === initialFindingId)
+    if (focused) setSelected(focused)
+  }, [initialFindingId, open])
 
   useEffect(() => {
     if (!selected || !open.some((item) => item.id === selected.id)) {
@@ -320,14 +371,22 @@ export function AnalyzeCodePane({
   return (
     <div className="pane pane--analyze pane--analyze-solo">
       <section className="scan-section">
-        <header className="card__title scan-section__title">
-          <span>Scan</span>
+        <header className="pane-header scan-section__title">
+          <div className="pane-header__main">
+            <span>Scan</span>
+            <p className="muted">Upload or link what to scan, then run Analyze.</p>
+          </div>
+          <div className="pane-header__actions">
+            <button className="btn btn--primary" type="button" disabled={busy} onClick={runCode}>
+              {busy ? 'Scanning…' : 'Analyze code'}
+            </button>
+          </div>
         </header>
 
         <section className="card drop analyze-scan">
           <header className="card__title">
             <span>Artifacts</span>
-            <span className="muted">Upload or link what to scan</span>
+            <span className="muted">Zip upload or git URL</span>
           </header>
 
           <div className="filters code-modes" role="tablist" aria-label="Code source">
@@ -367,7 +426,7 @@ export function AnalyzeCodePane({
               </span>
               {zipFile ? (
                 <button
-                  className="btn btn--tiny"
+                  className="btn"
                   type="button"
                   onClick={() => {
                     setZipFile(null)
@@ -394,14 +453,9 @@ export function AnalyzeCodePane({
 
           <p className="hint">
             {codeMode === 'folder'
-              ? 'Zip the folder on your machine first, upload the archive, then the server unpacks and scans.'
-              : 'Shallow-clones the repo on the server, then scans it.'}
+              ? 'Zip the folder on your machine first, upload the archive, then use Analyze code in the header.'
+              : 'Shallow-clones the repo on the server — use Analyze code in the header when ready.'}
           </p>
-          <div className="pane__actions">
-            <button className="btn btn--primary" type="button" disabled={busy} onClick={runCode}>
-              {busy ? 'Scanning…' : 'Analyze code'}
-            </button>
-          </div>
         </section>
       </section>
 
@@ -412,6 +466,7 @@ export function AnalyzeCodePane({
         selected={selected}
         onSelect={setSelected}
         onOpenFix={onOpenFix}
+        onSimulate={onSimulate}
         onRefresh={onRefresh}
       />
     </div>
@@ -423,11 +478,15 @@ export function AnalyzeArchitecturePane({
   findings,
   onRefresh,
   onOpenFix,
+  onSimulate,
+  initialFindingId,
 }: {
   workspaceId: string
   findings: Finding[]
   onRefresh: () => void
   onOpenFix: (findingId: string) => void
+  onSimulate?: (findingId: string) => void
+  initialFindingId?: string | null
 }) {
   const [archMode, setArchMode] = useState<Exclude<ArchMode, 'both'>>('privacy')
   const [diagramText, setDiagramText] = useState(DEMO_PRIVACY)
@@ -437,8 +496,19 @@ export function AnalyzeArchitecturePane({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const open = filterFindings(findings, 'architecture')
-  const [selected, setSelected] = useState<Finding | null>(open[0] ?? null)
+  const [selected, setSelected] = useState<Finding | null>(() => {
+    if (initialFindingId) {
+      return open.find((item) => item.id === initialFindingId) ?? open[0] ?? null
+    }
+    return open[0] ?? null
+  })
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!initialFindingId) return
+    const focused = open.find((item) => item.id === initialFindingId)
+    if (focused) setSelected(focused)
+  }, [initialFindingId, open])
 
   useEffect(() => {
     if (!selected || !open.some((item) => item.id === selected.id)) {
@@ -457,13 +527,14 @@ export function AnalyzeArchitecturePane({
     setDiagramFile(null)
   }
 
-  const runDiagram = async () => {
+  const runDiagram = async (fileOverride?: File | null) => {
+    const file = fileOverride === undefined ? diagramFile : fileOverride
     setBusy(true)
     setError(null)
     try {
       let result: { findings: Finding[]; inventory?: ArchInventory }
-      if (diagramFile) {
-        result = await analyzeDiagramFile(workspaceId, diagramFile, diagramFormat, archMode)
+      if (file) {
+        result = await analyzeDiagramFile(workspaceId, file, diagramFormat, archMode)
       } else if (diagramText.trim()) {
         result = await analyzeDiagramText(
           workspaceId,
@@ -486,19 +557,46 @@ export function AnalyzeArchitecturePane({
     }
   }
 
+  const takeDiagramFile = (file: File | null) => {
+    setDiagramFile(file)
+    if (!file) return
+    if (/\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name)) {
+      void runDiagram(file)
+    }
+  }
+
   const modeHint = ARCH_MODES.find((item) => item.id === archMode)?.hint
 
   return (
     <div className="pane pane--analyze pane--analyze-solo">
       <section className="scan-section">
-        <header className="card__title scan-section__title">
-          <span>Scan architecture</span>
+        <header className="pane-header scan-section__title">
+          <div className="pane-header__main">
+            <span>Scan architecture</span>
+            <p className="muted">{modeHint || 'Diagram or source inventory'}</p>
+          </div>
+          <div className="pane-header__actions">
+            <button className="btn" type="button" onClick={() => loadDemo('privacy')}>
+              Privacy demo
+            </button>
+            <button className="btn" type="button" onClick={() => loadDemo('workflow')}>
+              Workflow demo
+            </button>
+            <button
+              className="btn btn--primary"
+              type="button"
+              disabled={busy}
+              onClick={() => void runDiagram()}
+            >
+              {busy ? 'Reviewing…' : 'Analyze architecture'}
+            </button>
+          </div>
         </header>
 
         <section className="card drop analyze-scan">
           <header className="card__title">
             <span>Artifacts</span>
-            <span className="muted">Diagram or source inventory</span>
+            <span className="muted">PNG/JPG rebuilds the board; edit it to fix findings</span>
           </header>
 
         <div className="filters code-modes" role="tablist" aria-label="Architecture analysis mode">
@@ -516,7 +614,6 @@ export function AnalyzeArchitecturePane({
             </button>
           ))}
         </div>
-        {modeHint ? <p className="muted analyze-scan__hint">{modeHint}</p> : null}
 
         <div className="analyze-scan__grid">
           <div>
@@ -539,8 +636,7 @@ export function AnalyzeArchitecturePane({
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault()
-                const file = event.dataTransfer.files?.[0]
-                if (file) setDiagramFile(file)
+                takeDiagramFile(event.dataTransfer.files?.[0] ?? null)
               }}
             >
               <input
@@ -548,7 +644,7 @@ export function AnalyzeArchitecturePane({
                 type="file"
                 accept={DIAGRAM_ACCEPT}
                 hidden
-                onChange={(event) => setDiagramFile(event.target.files?.[0] ?? null)}
+                onChange={(event) => takeDiagramFile(event.target.files?.[0] ?? null)}
               />
               <button className="btn" type="button" onClick={() => fileRef.current?.click()}>
                 {diagramFile ? 'Change file' : 'Upload diagram'}
@@ -556,37 +652,20 @@ export function AnalyzeArchitecturePane({
               <span className="muted">
                 {diagramFile
                   ? diagramFile.name
-                  : 'PNG, JPG, SVG, PDF, .puml, .mmd, .dot, .drawio'}
+                  : 'PNG/JPG → faithful board recreate · or paste .puml / .mmd / .dot / .drawio'}
               </span>
               {diagramFile ? (
                 <button
-                  className="btn btn--tiny"
+                  className="btn"
                   type="button"
                   onClick={() => {
-                    setDiagramFile(null)
+                    takeDiagramFile(null)
                     if (fileRef.current) fileRef.current.value = ''
                   }}
                 >
                   Clear
                 </button>
               ) : null}
-            </div>
-
-            <div className="pane__actions pane__actions--wrap">
-              <button
-                className="btn btn--tiny"
-                type="button"
-                onClick={() => loadDemo('privacy')}
-              >
-                Load privacy demo
-              </button>
-              <button
-                className="btn btn--tiny"
-                type="button"
-                onClick={() => loadDemo('workflow')}
-              >
-                Load workflow demo
-              </button>
             </div>
           </div>
 
@@ -602,59 +681,149 @@ export function AnalyzeArchitecturePane({
           </label>
         </div>
 
-        <div className="pane__actions">
-          <button className="btn btn--primary" type="button" disabled={busy} onClick={runDiagram}>
-            {busy ? 'Reviewing…' : 'Analyze architecture'}
-          </button>
-        </div>
+        <p className="hint">
+          1) Upload PNG/JPG — vision recreates boxes and arrows as closely as possible. 2) Correct any
+          extraction mistakes on the board. 3) Fix architecture issues by changing the diagram
+          (add HITL, cut risky paths, pin MCP…). 4) Analyze board to refresh findings.
+        </p>
         </section>
       </section>
 
       {error ? <p className="err">{error}</p> : null}
 
-      {inventory ? <InventoryCard inventory={inventory} /> : null}
+      {inventory?.vision?.message || inventory?.vision?.status ? (
+        <p
+          className={
+            inventory?.vision?.status === 'ok'
+              ? 'extract-banner extract-banner--ok'
+              : inventory?.vision?.status === 'ocr_fallback'
+                ? 'extract-banner extract-banner--ocr'
+                : 'extract-banner extract-banner--warn'
+          }
+          role="status"
+        >
+          <strong>
+            {inventory?.vision?.status === 'ok'
+              ? 'Image extract'
+              : inventory?.vision?.status === 'ocr_fallback'
+                ? 'OCR fallback'
+                : 'Seed fallback'}
+          </strong>
+          <span>
+            {inventory?.vision?.message ||
+              (inventory?.vision?.status === 'ok'
+                ? 'Recreated boxes and arrows from the image.'
+                : inventory?.vision?.status === 'ocr_fallback'
+                  ? 'Vision LLM did not work — fell back to OCR.'
+                  : 'Vision LLM did not work — loaded a filename seed.')}
+            {inventory?.vision?.vision_error
+              ? ` Vision error: ${inventory.vision.vision_error}`
+              : ''}
+            {inventory?.vision?.ocr_error ? ` OCR: ${inventory.vision.ocr_error}` : ''}
+          </span>
+        </p>
+      ) : null}
+
+      {inventory?.risk?.message || inventory?.risk?.status ? (
+        <p
+          className={
+            inventory?.risk?.status === 'llm'
+              ? 'extract-banner extract-banner--ok'
+              : 'extract-banner extract-banner--warn'
+          }
+          role="status"
+        >
+          <strong>
+            {inventory?.risk?.status === 'llm' ? 'LLM risk analyze' : 'Rules fallback'}
+          </strong>
+          <span>
+            {inventory?.risk?.message ||
+              (inventory?.risk?.status === 'llm'
+                ? 'Findings from arc_image_analyze.'
+                : 'LLM risk analyze unavailable — used the architecture rule catalog.')}
+          </span>
+        </p>
+      ) : null}
+
+      {inventory?.privacy_posture ? (
+        <div className="extract-banner extract-banner--ok privacy-posture" role="status">
+          <strong>Privacy posture</strong>
+          <span>
+            LLMs: {(inventory.privacy_posture.llm_vendors || []).join(', ') || '—'}
+            {' · '}
+            Data: {(inventory.privacy_posture.data_stores || []).join(', ') || '—'}
+            {' · '}
+            HITL: {inventory.privacy_posture.controls?.hitl_present ? 'yes' : 'no'}
+            {' · '}
+            DLP/ZDR labeled: {inventory.privacy_posture.controls?.dlp_or_zdr_labeled ? 'yes' : 'no'}
+            {(inventory.privacy_posture.gaps || []).length
+              ? ` · Gaps: ${(inventory.privacy_posture.gaps || []).join(', ')}`
+              : ''}
+          </span>
+        </div>
+      ) : null}
+
+      {inventory?.graph?.nodes?.length ||
+      inventory?.board?.nodes?.length ||
+      inventory?.nodes?.length ? (
+        <ArchDiagramBoard
+          nodes={inventory?.board?.nodes || inventory?.nodes || inventory?.graph?.nodes}
+          edges={inventory?.board?.edges || inventory?.edges || inventory?.graph?.edges}
+          issueCount={open.length}
+          remediationHints={inventory?.remediation_hints}
+          visionNote={
+            inventory?.vision?.status === 'ok'
+              ? `Vision (${inventory.vision.provider || 'model'}:${inventory.vision.model || '—'}) recreated this board from the image as closely as possible.`
+              : inventory?.vision?.status === 'ocr_fallback'
+                ? 'Vision LLM failed — OCR rebuilt labels (arrows may be heuristic). Correct the board, then Analyze.'
+                : inventory?.vision?.status === 'seeded'
+                  ? 'Vision had no usable arrows — board loaded from a faithful filename seed. Correct anything off, then fix issues on the diagram.'
+                  : inventory?.vision?.status === 'fallback'
+                    ? 'Vision LLM failed — board loaded from a faithful filename seed. Correct if needed, then Analyze board.'
+                    : 'Board edits the Structurizr/C4 workspace (same model the LLM sees).'
+          }
+          busy={busy}
+          onReanalyze={async (graph, board) => {
+            setBusy(true)
+            setError(null)
+            try {
+              setDiagramText(board.mermaid)
+              setDiagramFormat('structurizr')
+              setDiagramFile(null)
+              // Same Structurizr workspace the board edited — sent to LLM/rules
+              const result = await analyzeArchitectureGraph(workspaceId, graph, archMode)
+              setInventory({
+                ...(result.inventory ?? {}),
+                graph: result.inventory?.graph || graph,
+                board: {
+                  nodes: board.nodes,
+                  edges: board.edges,
+                },
+                nodes: board.nodes,
+                edges: board.edges,
+                mermaid: board.mermaid,
+              })
+              onRefresh()
+              const next = filterFindings(result.findings, 'architecture')
+              if (next[0]) setSelected(next[0])
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Board re-analyze failed')
+            } finally {
+              setBusy(false)
+            }
+          }}
+        />
+      ) : null}
 
       <FindingsBoard
         open={open}
         selected={selected}
         onSelect={setSelected}
         onOpenFix={onOpenFix}
+        onSimulate={onSimulate}
         onRefresh={onRefresh}
+        showCodeFix={false}
       />
     </div>
-  )
-}
-
-function InventoryCard({ inventory }: { inventory: ArchInventory }) {
-  const counts = inventory.counts || {}
-  const entries = Object.entries(counts)
-  if (entries.length === 0 && !(inventory.nodes && inventory.nodes.length)) return null
-  return (
-    <section className="card inventory-card">
-      <header className="card__title">
-        <span>Workflow inventory</span>
-        <span className="muted">
-          {inventory.source === 'code' ? 'From source tree' : 'From diagram'} · Agentic Radar–style
-        </span>
-      </header>
-      <ul className="inventory-card__counts">
-        {entries.map(([kind, count]) => (
-          <li key={kind}>
-            <strong>{kind}</strong>
-            <span>{count}</span>
-          </li>
-        ))}
-      </ul>
-      {inventory.by_kind ? (
-        <div className="inventory-card__kinds">
-          {Object.entries(inventory.by_kind).map(([kind, labels]) => (
-            <p key={kind}>
-              <em>{kind}</em> {labels.slice(0, 6).join(' · ')}
-              {labels.length > 6 ? ` · +${labels.length - 6}` : ''}
-            </p>
-          ))}
-        </div>
-      ) : null}
-    </section>
   )
 }
