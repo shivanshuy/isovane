@@ -10,16 +10,9 @@ import {
   type Finding,
   type Trace,
 } from './api'
-import {
-  agents,
-  cpuBars,
-  logs,
-  memoryBars,
-  services,
-  type LogLine,
-  type Workspace,
-  type WorkspaceIcon,
-} from './data'
+import { STORAGE_THEME, STORAGE_WATCH_GATE } from './constants'
+import { type Workspace, type WorkspaceIcon } from './data'
+import { isArchitectureFinding, type FixLane } from './findings'
 import { AnalyzeArchitecturePane, AnalyzeCodePane } from './panes/Analyze'
 import { FixPane } from './panes/Fix'
 import { PlaygroundPane } from './panes/Playground'
@@ -37,14 +30,12 @@ const APP_THEMES: { id: AppTheme; label: string }[] = [
 type Pane =
   | 'welcome'
   | 'home'
-  | 'overview'
   | 'analyze-code'
   | 'analyze-arch'
   | 'watch'
   | 'fix'
   | 'settings'
   | 'playground'
-type LogFilter = 'all' | 'web' | 'emails'
 type NavId =
   | 'home'
   | 'analyze-code'
@@ -54,7 +45,6 @@ type NavId =
   | 'fix-gate'
   | 'settings'
   | 'playground'
-type FixLane = 'analyze' | 'watch'
 
 function viewToPane(view: RouteView): { pane: Pane; nav: NavId; fixLane: FixLane } {
   if (view === 'watch') return { pane: 'watch', nav: 'watch', fixLane: 'watch' }
@@ -79,7 +69,7 @@ function readInitialRoute(): AppRoute {
 function useTheme() {
   const [theme, setTheme] = useState<AppTheme>(() => {
     if (typeof window === 'undefined') return 'red-dwarf'
-    const stored = window.localStorage.getItem('isovane-theme')
+    const stored = window.localStorage.getItem(STORAGE_THEME)
     if (stored === 'white-dwarf') return 'red-dwarf'
     if (stored === 'black-hole' || stored === 'earth' || stored === 'red-dwarf') return stored
     return 'red-dwarf'
@@ -87,7 +77,7 @@ function useTheme() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
-    window.localStorage.setItem('isovane-theme', theme)
+    window.localStorage.setItem(STORAGE_THEME, theme)
   }, [theme])
 
   return { theme, setTheme }
@@ -222,20 +212,6 @@ function paneEyebrow(pane: Pane, fixLane: FixLane) {
   return 'Signal health'
 }
 
-function isArchitectureFinding(finding: Finding) {
-  return finding.category === 'architecture' || Boolean(finding.evidence.diagram_region)
-}
-
-function Bars({ values, tone }: { values: number[]; tone: 'blue' | 'orange' }) {
-  return (
-    <div className={`bars bars--${tone}`} aria-hidden="true">
-      {values.map((value, index) => (
-        <span key={index} style={{ height: `${value}%` }} />
-      ))}
-    </div>
-  )
-}
-
 function asWorkspace(item: Workspace | Record<string, unknown>): Workspace {
   const icon = (item.icon as WorkspaceIcon) || 'drop'
   return {
@@ -266,19 +242,17 @@ export default function App() {
   const [workspaceList, setWorkspaceList] = useState<Workspace[]>([])
   const [workspacesLoading, setWorkspacesLoading] = useState(true)
   const [route, setRoute] = useState<AppRoute>(() => readInitialRoute())
-  const [running] = useState(true)
   const [watching, setWatching] = useState(true)
   const [watchGateEnabled, setWatchGateEnabled] = useState(() => {
     if (typeof window === 'undefined') return true
-    const stored = window.localStorage.getItem('isovane-feature-watch-gate')
+    const stored = window.localStorage.getItem(STORAGE_WATCH_GATE)
     if (stored === '0' || stored === 'false') return false
     return true
   })
 
   useEffect(() => {
-    window.localStorage.setItem('isovane-feature-watch-gate', watchGateEnabled ? '1' : '0')
+    window.localStorage.setItem(STORAGE_WATCH_GATE, watchGateEnabled ? '1' : '0')
   }, [watchGateEnabled])
-  const [logFilter, setLogFilter] = useState<LogFilter>('all')
   const [findings, setFindings] = useState<Finding[]>([])
   const [traces, setTraces] = useState<Trace[]>([])
   const [gate, setGate] = useState({ open: 0, denies: 0, ci: 0 })
@@ -300,8 +274,6 @@ export default function App() {
     : null
   const inWorkspace = workspace !== null
   const restoringWorkspace = route.kind === 'workspace' && workspacesLoading
-  const visibleLogs = logs.filter((line) => logFilter === 'all' || line.source === logFilter)
-
   const applyRoute = useCallback((next: AppRoute) => {
     setRoute((current) => (routeEquals(current, next) ? current : next))
     if (next.kind === 'home' || next.kind === 'welcome' || next.kind === 'settings') {
@@ -707,16 +679,6 @@ export default function App() {
               onDelete={handleDelete}
             />
           ) : null}
-          {inWorkspace && pane === 'overview' ? (
-            <Overview
-              workspace={workspace}
-              logs={visibleLogs}
-              filter={logFilter}
-              onFilter={setLogFilter}
-              running={running}
-              gate={gate}
-            />
-          ) : null}
           {inWorkspace && pane === 'analyze-code' ? (
             <AnalyzeCodePane
               workspaceId={workspace.id}
@@ -1030,133 +992,6 @@ function Home({
           </li>
         ))}
       </ul>
-    </div>
-  )
-}
-
-function Overview({
-  workspace,
-  logs: lines,
-  filter,
-  onFilter,
-  running,
-  gate,
-}: {
-  workspace: Workspace
-  logs: LogLine[]
-  filter: LogFilter
-  onFilter: (filter: LogFilter) => void
-  running: boolean
-  gate: { open: number; denies: number; ci: number }
-}) {
-  return (
-    <div className="overview">
-      <div className="meters">
-        <article className="card">
-          <header>
-            <span>CPU</span>
-            <Bars values={cpuBars} tone="blue" />
-          </header>
-          <strong>{workspace.cpu} %</strong>
-          <small>{workspace.cpuPeak}</small>
-        </article>
-        <article className="card">
-          <header>
-            <span>Memory</span>
-            <Bars values={memoryBars} tone="orange" />
-          </header>
-          <strong>{workspace.memory}</strong>
-          <small>{workspace.memoryOf}</small>
-        </article>
-        <article className="card card--gate">
-          <header>
-            <span>Gate</span>
-            <span className="pulse" />
-          </header>
-          <strong>
-            {gate.open} · {gate.denies} · {gate.ci}
-          </strong>
-          <small>open · denies · CI</small>
-        </article>
-      </div>
-
-      <div className="split">
-        <article className="card card--stack">
-          <header className="card__title">
-            <span>Ports</span>
-            <button type="button">+ Add</button>
-          </header>
-          <ul className="ports">
-            {workspace.ports.map((port) => (
-              <li key={port.port}>
-                <span>{port.label}</span>
-                <code>:{port.port}</code>
-              </li>
-            ))}
-          </ul>
-        </article>
-
-        <article className="card card--stack">
-          <header className="card__title">
-            <span>Agents {agents.length}</span>
-          </header>
-          <ul className="agents">
-            {agents.map((agent) => (
-              <li key={agent.id}>
-                <span className={`agent__icon agent__icon--${agent.tone}`} aria-hidden="true">
-                  {agent.tone === 'idle' ? '⌘' : '✶'}
-                </span>
-                <div>
-                  <strong>{agent.title}</strong>
-                  <small>{agent.meta}</small>
-                </div>
-                <span className={`track track--${agent.tone}`}>
-                  <i style={{ width: agent.width }} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        </article>
-      </div>
-
-      <article className="card card--logs">
-        <header className="card__title">
-          <span>
-            Services {running ? '2 running' : 'stopped'}
-            <em>{workspace.uptime} uptime · since {workspace.since}</em>
-          </span>
-          <div className="filters" role="tablist" aria-label="Log source">
-            {(['all', 'web', 'emails'] as const).map((item) => (
-              <button
-                key={item}
-                type="button"
-                className={filter === item ? 'filters__btn filters__btn--on' : 'filters__btn'}
-                onClick={() => onFilter(item)}
-              >
-                {item === 'all' ? 'All' : item}
-              </button>
-            ))}
-          </div>
-        </header>
-        <ul className="services">
-          {services.map((service) => (
-            <li key={service.name}>
-              <i className={running ? 'dot dot--on' : 'dot'} />
-              <strong>{service.name}</strong>
-              <code>{service.command}</code>
-            </li>
-          ))}
-        </ul>
-        <div className="log" role="log" aria-live="polite">
-          {lines.map((line) => (
-            <p key={`${line.time}-${line.text}`}>
-              <time>{line.time}</time>
-              <b className={line.source === 'emails' ? 'src src--mail' : 'src'}>{line.source}</b>
-              <span className={line.kind === 'ok' ? 'log__ok' : undefined}>{line.text}</span>
-            </p>
-          ))}
-        </div>
-      </article>
     </div>
   )
 }

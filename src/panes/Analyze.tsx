@@ -11,6 +11,8 @@ import {
   type Finding,
 } from '../api'
 import { ArchDiagramBoard } from '../components/ArchDiagramBoard'
+import { ZIP_MAX_BYTES } from '../constants'
+import { isArchitectureFinding, isOpenFinding } from '../findings'
 import { FindingStory } from './FindingStory'
 
 const DIAGRAM_ACCEPT =
@@ -61,15 +63,11 @@ const ARCH_MODES: { id: Exclude<ArchMode, 'both'>; label: string; hint: string }
 ]
 
 type CodeMode = 'folder' | 'git'
-export type AnalyzeMode = 'code' | 'architecture'
-
-function isArchitectureFinding(finding: Finding) {
-  return finding.category === 'architecture' || Boolean(finding.evidence.diagram_region)
-}
+type AnalyzeMode = 'code' | 'architecture'
 
 function filterFindings(findings: Finding[], mode: AnalyzeMode) {
   return findings.filter((finding) => {
-    if (finding.status !== 'open' && finding.status !== 'accepted') return false
+    if (!isOpenFinding(finding)) return false
     if (finding.source !== 'analyze') return false
     return mode === 'architecture' ? isArchitectureFinding(finding) : !isArchitectureFinding(finding)
   })
@@ -349,7 +347,7 @@ export function AnalyzeCodePane({
         }
         result = await analyzeCode(workspaceId, { repo: gitUrl.trim() })
       } else if (zipFile) {
-        if (zipFile.size > 80 * 1024 * 1024) {
+        if (zipFile.size > ZIP_MAX_BYTES) {
           setError('Zip is larger than 80 MB.')
           return
         }

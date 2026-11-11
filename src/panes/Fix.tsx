@@ -1,15 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { completeFix, createFix, type Finding, type FixPayload } from '../api'
+import { COPY_FEEDBACK_MS } from '../constants'
 import { FixSummary } from '../copy'
-
-type FixLane = 'analyze' | 'watch'
-
-function laneOf(finding: Finding): 'analyze' | 'watch' {
-  if (finding.source === 'watch' || finding.source === 'hunt' || finding.category === 'runtime') {
-    return 'watch'
-  }
-  return 'analyze'
-}
+import { isOpenFinding, laneOf, type FixLane } from '../findings'
 
 export function FixPane({
   findings,
@@ -24,7 +17,7 @@ export function FixPane({
 }) {
   const lane = initialLane
   const queue = useMemo(() => {
-    const open = findings.filter((f) => f.status === 'accepted' || f.status === 'open')
+    const open = findings.filter(isOpenFinding)
     const laneItems = open.filter((f) => laneOf(f) === lane)
     // Code Fix / Gate fix opened from a selected issue → show only that issue
     if (focusId) {
@@ -86,7 +79,7 @@ export function FixPane({
                 onClick={async () => {
                   await navigator.clipboard.writeText(patch.copy_text)
                   setCopied(true)
-                  window.setTimeout(() => setCopied(false), 1200)
+                  window.setTimeout(() => setCopied(false), COPY_FEEDBACK_MS)
                 }}
               >
                 {copied ? 'Copied' : 'Copy patch'}

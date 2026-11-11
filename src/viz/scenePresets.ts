@@ -131,16 +131,3 @@ export function presetForFinding(finding: Finding | null | undefined): ExploitPr
   }
   return PRESETS.default
 }
-
-export function landingPreset(): ExploitPreset {
-  return {
-    id: 'landing',
-    title: 'Analyze → Watch → Fix',
-    nodes: [
-      { id: 'analyze', label: 'Analyze', detail: 'Find before ship' },
-      { id: 'watch', label: 'Watch', detail: 'Gate tool calls' },
-      { id: 'fix', label: 'Fix', detail: 'Patch + policy' },
-      { id: 'safe', label: 'Safer agent', detail: 'Ship with bounds' },
-    ],
-  }
-}

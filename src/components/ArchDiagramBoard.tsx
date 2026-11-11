@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { ArchBoardEdge, ArchBoardNode, ArchitectureGraph } from '../api'
 
-export const ARCHITECTURE_GRAPH_SCHEMA = 'structurizr.workspace' as const
-
 const NODE_W = 148
 const NODE_H = 64
 const PALETTE: { kind: string; label: string }[] = [

@@ -427,13 +427,6 @@ export function completeFix(findingId: string) {
   return request<Finding>(`/fixes/${findingId}/done`, { method: 'POST' })
 }
 
-export function patchFinding(findingId: string, status: FindingStatus) {
-  return request<Finding>(`/findings/${findingId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  })
-}
-
 export type SimulationPackSummary = {
   id: string
   title: string
@@ -498,10 +491,6 @@ export type SimulationForFinding = {
 
 export function fetchSimulations() {
   return request<{ banner: string; packs: SimulationPackSummary[] }>('/simulations')
-}
-
-export function fetchSimulationPack(packId: string) {
-  return request<SimulationPack>(`/simulations/${encodeURIComponent(packId)}`)
 }
 
 export function simulationForFinding(findingId: string) {
