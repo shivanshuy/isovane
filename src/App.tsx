@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   createWorkspace as createWorkspaceApi,
   deleteWorkspace as deleteWorkspaceApi,
@@ -10,235 +10,24 @@ import {
   type Finding,
   type Trace,
 } from './api'
-import { STORAGE_THEME, STORAGE_WATCH_GATE } from './constants'
-import { type Workspace, type WorkspaceIcon } from './data'
-import { isArchitectureFinding, type FixLane } from './findings'
+import { asWorkspace, readInitialRoute, viewToPane, type NavId, type Pane } from './appShell'
+import { paneEyebrow } from './config'
+import { NavIcon } from './components/ShellIcons'
+import { STORAGE_WATCH_GATE } from './constants'
+import type { Workspace } from './data'
+import { isArchitectureFinding, isOpenFinding, type FixLane } from './findings'
+import { useTheme } from './hooks/useTheme'
 import { AnalyzeArchitecturePane, AnalyzeCodePane } from './panes/Analyze'
 import { FixPane } from './panes/Fix'
 import { PlaygroundPane } from './panes/Playground'
 import { WatchPane } from './panes/Watch'
+import { Home } from './pages/Home'
 import { Landing } from './pages/Landing'
+import { Settings } from './pages/Settings'
 import { navigate, parseHash, routeEquals, type AppRoute, type RouteView } from './routing'
 
-type AppTheme = 'red-dwarf' | 'earth' | 'black-hole'
-
-const APP_THEMES: { id: AppTheme; label: string }[] = [
-  { id: 'red-dwarf', label: 'Red Dwarf' },
-  { id: 'earth', label: 'Earth' },
-  { id: 'black-hole', label: 'Black Hole' },
-]
-type Pane =
-  | 'welcome'
-  | 'home'
-  | 'analyze-code'
-  | 'analyze-arch'
-  | 'watch'
-  | 'fix'
-  | 'settings'
-  | 'playground'
-type NavId =
-  | 'home'
-  | 'analyze-code'
-  | 'analyze-arch'
-  | 'watch'
-  | 'fix-dev'
-  | 'fix-gate'
-  | 'settings'
-  | 'playground'
-
-function viewToPane(view: RouteView): { pane: Pane; nav: NavId; fixLane: FixLane } {
-  if (view === 'watch') return { pane: 'watch', nav: 'watch', fixLane: 'watch' }
-  if (view === 'playground') return { pane: 'playground', nav: 'playground', fixLane: 'analyze' }
-  if (view === 'fix-dev') return { pane: 'fix', nav: 'fix-dev', fixLane: 'analyze' }
-  if (view === 'fix-gate') return { pane: 'fix', nav: 'fix-gate', fixLane: 'watch' }
-  if (view === 'analyze-arch') return { pane: 'analyze-arch', nav: 'analyze-arch', fixLane: 'analyze' }
-  // settings is app-level (route.kind === 'settings'), not a workspace view
-  return { pane: 'analyze-code', nav: 'analyze-code', fixLane: 'analyze' }
-}
-
-function readInitialRoute(): AppRoute {
-  if (typeof window === 'undefined') return { kind: 'welcome' }
-  const route = parseHash(window.location.hash)
-  if (!window.location.hash || window.location.hash === '#' || window.location.hash === '#/') {
-    navigate({ kind: 'welcome' }, true)
-    return { kind: 'welcome' }
-  }
-  return route
-}
-
-function useTheme() {
-  const [theme, setTheme] = useState<AppTheme>(() => {
-    if (typeof window === 'undefined') return 'red-dwarf'
-    const stored = window.localStorage.getItem(STORAGE_THEME)
-    if (stored === 'white-dwarf') return 'red-dwarf'
-    if (stored === 'black-hole' || stored === 'earth' || stored === 'red-dwarf') return stored
-    return 'red-dwarf'
-  })
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-    window.localStorage.setItem(STORAGE_THEME, theme)
-  }, [theme])
-
-  return { theme, setTheme }
-}
-
-function Mark({ icon }: { icon: WorkspaceIcon }) {
-  if (icon === 'drop') return <span className="mark mark--drop" aria-hidden="true" />
-  if (icon === 'bolt') {
-    return (
-      <span className="mark mark--bolt" aria-hidden="true">
-        <svg viewBox="0 0 12 12" width="10" height="10" fill="currentColor">
-          <path d="M7.2 0.5 2 6.8h3.1L4.8 11.5 10 5.2H6.8L7.2 0.5Z" />
-        </svg>
-      </span>
-    )
-  }
-  if (icon === 's') return <span className="mark mark--s" aria-hidden="true">S</span>
-  return <span className="mark mark--n" aria-hidden="true">N</span>
-}
-
-function NavIcon({
-  kind,
-}: {
-  kind:
-    | 'analyze-code'
-    | 'analyze-arch'
-    | 'watch'
-    | 'fix-dev'
-    | 'fix-gate'
-    | 'settings'
-    | 'home'
-    | 'playground'
-}) {
-  if (kind === 'home') {
-    return (
-      <span className="nav__glyph" aria-hidden="true">
-        <svg viewBox="0 0 16 16" fill="none">
-          <path d="M2.5 7.2 8 2.5l5.5 4.7V13a1 1 0 0 1-1 1H9.2V9.4H6.8V14H3.5a1 1 0 0 1-1-1V7.2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-        </svg>
-      </span>
-    )
-  }
-  if (kind === 'analyze-code') {
-    return (
-      <span className="nav__glyph" aria-hidden="true">
-        <svg viewBox="0 0 16 16" fill="none">
-          <circle cx="7" cy="7" r="4.25" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M10.4 10.4 13.5 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </span>
-    )
-  }
-  if (kind === 'analyze-arch') {
-    return (
-      <span className="nav__glyph" aria-hidden="true">
-        <svg viewBox="0 0 16 16" fill="none">
-          <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="0.8" stroke="currentColor" strokeWidth="1.4" />
-          <rect x="9" y="2.5" width="4.5" height="4.5" rx="0.8" stroke="currentColor" strokeWidth="1.4" />
-          <rect x="5.75" y="9" width="4.5" height="4.5" rx="0.8" stroke="currentColor" strokeWidth="1.4" />
-          <path d="M4.75 7v1.2M11.25 7v1.2M7 9.5H6.2M10 9.5h-.8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-        </svg>
-      </span>
-    )
-  }
-  if (kind === 'watch') {
-    return (
-      <span className="nav__glyph" aria-hidden="true">
-        <svg viewBox="0 0 16 16" fill="none">
-          <circle cx="8" cy="8" r="5.25" stroke="currentColor" strokeWidth="1.5" />
-          <circle cx="8" cy="8" r="1.6" fill="currentColor" />
-        </svg>
-      </span>
-    )
-  }
-  if (kind === 'fix-dev') {
-    return (
-      <span className="nav__glyph" aria-hidden="true">
-        <svg viewBox="0 0 16 16" fill="none">
-          <path d="M3 12.5h10M4.2 10.2 10.8 3.6l1.6 1.6-6.6 6.6H4.2v-1.6Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-        </svg>
-      </span>
-    )
-  }
-  if (kind === 'fix-gate') {
-    return (
-      <span className="nav__glyph" aria-hidden="true">
-        <svg viewBox="0 0 16 16" fill="none">
-          <path d="M4 2.5h3v11H4V2.5Zm5 0h3v11H9V2.5Z" fill="currentColor" />
-        </svg>
-      </span>
-    )
-  }
-  if (kind === 'playground') {
-    return (
-      <span className="nav__glyph" aria-hidden="true">
-        <svg viewBox="0 0 16 16" fill="none">
-          <path
-            d="M3 11.5 8 3.5l5 8H3Z"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinejoin="round"
-          />
-          <circle cx="8" cy="10" r="1.1" fill="currentColor" />
-        </svg>
-      </span>
-    )
-  }
-  return (
-    <span className="nav__glyph" aria-hidden="true">
-      <svg viewBox="0 0 16 16" fill="none">
-        <circle cx="8" cy="8" r="2.1" stroke="currentColor" strokeWidth="1.5" />
-        <path
-          d="M8 1.6v1.5M8 12.9v1.5M1.6 8h1.5M12.9 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-        />
-      </svg>
-    </span>
-  )
-}
-
-function paneEyebrow(pane: Pane, fixLane: FixLane) {
-  if (pane === 'home') return 'All agents'
-  if (pane === 'analyze-code') return 'Find in code before ship'
-  if (pane === 'analyze-arch') return 'Find in architecture before ship'
-  if (pane === 'watch') return 'Gate outside the model'
-  if (pane === 'playground') return 'Sealed attack labs · not your repository'
-  if (pane === 'fix' && fixLane === 'analyze') return 'Dev-time patch · code / prompt / architecture'
-  if (pane === 'fix' && fixLane === 'watch') return 'Runtime patch · policy / sidecar'
-  if (pane === 'settings') return 'App'
-  return 'Signal health'
-}
-
-function asWorkspace(item: Workspace | Record<string, unknown>): Workspace {
-  const icon = (item.icon as WorkspaceIcon) || 'drop'
-  return {
-    id: String(item.id),
-    name: String(item.name),
-    description: String(item.description ?? ''),
-    folder: String(item.folder ?? ''),
-    stack: String(item.stack ?? 'Agent'),
-    branch: String(item.branch ?? 'main'),
-    icon: icon === 'n' || icon === 'bolt' || icon === 's' || icon === 'drop' ? icon : 'drop',
-    url: String(item.url ?? ''),
-    uptime: String(item.uptime ?? '—'),
-    since: String(item.since ?? '—'),
-    cpu: Number(item.cpu ?? 0),
-    cpuPeak: String(item.cpuPeak ?? '—'),
-    memory: String(item.memory ?? '—'),
-    memoryOf: String(item.memoryOf ?? ''),
-    energy: String(item.energy ?? '—'),
-    energyNote: String(item.energyNote ?? ''),
-    ports: Array.isArray(item.ports)
-      ? (item.ports as { label: string; port: string }[])
-      : [],
-  }
-}
-
 export default function App() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, themes } = useTheme()
   const [workspaceList, setWorkspaceList] = useState<Workspace[]>([])
   const [workspacesLoading, setWorkspacesLoading] = useState(true)
   const [route, setRoute] = useState<AppRoute>(() => readInitialRoute())
@@ -343,23 +132,17 @@ export default function App() {
   }, [refreshSecurity])
 
   const openCodeFindings = findings.filter(
-    (f) =>
-      (f.status === 'open' || f.status === 'accepted') &&
-      f.source === 'analyze' &&
-      !isArchitectureFinding(f),
+    (f) => isOpenFinding(f) && f.source === 'analyze' && !isArchitectureFinding(f),
   ).length
   const openArchFindings = findings.filter(
-    (f) =>
-      (f.status === 'open' || f.status === 'accepted') &&
-      f.source === 'analyze' &&
-      isArchitectureFinding(f),
+    (f) => isOpenFinding(f) && f.source === 'analyze' && isArchitectureFinding(f),
   ).length
   const openDevFixes = findings.filter(
-    (f) => (f.status === 'open' || f.status === 'accepted') && f.source === 'analyze',
+    (f) => isOpenFinding(f) && f.source === 'analyze',
   ).length
   const openGateFixes = findings.filter(
     (f) =>
-      (f.status === 'open' || f.status === 'accepted') &&
+      isOpenFinding(f) &&
       (f.source === 'watch' || f.source === 'hunt' || f.category === 'runtime'),
   ).length
 
@@ -436,7 +219,7 @@ export default function App() {
   const handleDelete = async (id: string) => {
     const target = workspaceList.find((item) => item.id === id)
     if (!target) return
-    if (!window.confirm(`Delete workspace “${target.name}”?`)) return
+    if (!window.confirm(`Delete workspace "${target.name}"?`)) return
     await deleteWorkspaceApi(id)
     setWorkspaceList((prev) => prev.filter((item) => item.id !== id))
     if (workspaceId === id) goHome()
@@ -454,7 +237,7 @@ export default function App() {
     () => (
       <div className="theme-switch" role="radiogroup" aria-label="Theme">
         <div className="theme-switch__control theme-switch__control--trio">
-          {APP_THEMES.map(({ id, label }) => (
+          {themes.map(({ id, label }) => (
             <button
               key={id}
               type="button"
@@ -474,7 +257,7 @@ export default function App() {
         </div>
       </div>
     ),
-    [setTheme, theme],
+    [setTheme, theme, themes],
   )
 
   return (
@@ -564,7 +347,7 @@ export default function App() {
                   : 'nav__flow'
               }
             >
-              <p className="nav__flow-label">Find → patch</p>
+              <p className="nav__flow-label">Find â†’ patch</p>
               <button
                 className={nav === 'analyze-code' ? 'nav__link nav__link--on' : 'nav__link'}
                 type="button"
@@ -604,7 +387,7 @@ export default function App() {
                   nav === 'watch' || nav === 'fix-gate' ? 'nav__flow nav__flow--on' : 'nav__flow'
                 }
               >
-                <p className="nav__flow-label">Watch → gate</p>
+                <p className="nav__flow-label">Watch â†’ gate</p>
                 <button
                   className={nav === 'watch' ? 'nav__link nav__link--on' : 'nav__link'}
                   type="button"
@@ -646,7 +429,7 @@ export default function App() {
             <section className="stage__head">
               <div>
                 <p className="stage__eyebrow">Restoring</p>
-                <h1>Opening workspace…</h1>
+                <h1>Opening workspaceâ€¦</h1>
                 <p>{workspaceId}</p>
               </div>
             </section>
@@ -725,7 +508,7 @@ export default function App() {
                   : null
               }
               findings={findings.filter(
-                (f) => f.status === 'open' || f.status === 'accepted',
+                isOpenFinding,
               )}
               onSelectFinding={(id) => openSimulate(id)}
               onOpenFix={(id) => openFix('analyze', id)}
@@ -764,275 +547,3 @@ export default function App() {
   )
 }
 
-function Home({
-  workspaces: items,
-  loading,
-  onOpen,
-  onCreate,
-  onUpdate,
-  onDelete,
-}: {
-  workspaces: Workspace[]
-  loading: boolean
-  onOpen: (id: string) => void
-  onCreate: (payload: { name: string; description: string }) => Promise<void>
-  onUpdate: (id: string, payload: { name: string; description: string }) => Promise<void>
-  onDelete: (id: string) => Promise<void>
-}) {
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [menuId, setMenuId] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editName, setEditName] = useState('')
-  const [editDescription, setEditDescription] = useState('')
-  const [editBusy, setEditBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!menuId) return
-    const onPointer = (event: MouseEvent) => {
-      const target = event.target as Element | null
-      if (target?.closest(`[data-workspace-menu="${menuId}"]`)) return
-      setMenuId(null)
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenuId(null)
-    }
-    window.addEventListener('mousedown', onPointer)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('mousedown', onPointer)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [menuId])
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (!name.trim()) {
-      setError('Give the workspace a name.')
-      return
-    }
-    setBusy(true)
-    setError(null)
-    try {
-      await onCreate({ name: name.trim(), description: description.trim() })
-      setName('')
-      setDescription('')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create workspace')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="home">
-      <section className="pane-header stage__head home__head">
-        <div className="pane-header__main">
-          <p className="stage__eyebrow">All agents</p>
-          <h1>Workspaces</h1>
-          <p>Select an agent to secure, or create a new workspace.</p>
-        </div>
-        <div className="pane-header__actions">
-          <button
-            className="btn btn--primary"
-            type="submit"
-            form="workspace-create"
-            disabled={busy}
-          >
-            {busy ? 'Creating…' : 'Create workspace'}
-          </button>
-        </div>
-      </section>
-
-      <form
-        id="workspace-create"
-        className="home__create"
-        onSubmit={(event) => void submit(event)}
-      >
-        <label>
-          Name
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="checkout-agent"
-            autoComplete="off"
-          />
-        </label>
-        <label className="home__create-desc">
-          Description
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="What this agent does and why it needs a gate."
-            rows={3}
-          />
-        </label>
-        {error ? <p className="home__error">{error}</p> : null}
-      </form>
-
-      {loading ? <p className="home__empty">Loading workspaces…</p> : null}
-      {!loading && items.length === 0 ? (
-        <p className="home__empty">No workspaces yet. Create one above.</p>
-      ) : null}
-      <ul className="home__list">
-        {items.map((item) => (
-          <li key={item.id} className="home__row">
-            <button type="button" className="home__card" onClick={() => onOpen(item.id)}>
-              <Mark icon={item.icon} />
-              <div>
-                <strong>{item.name}</strong>
-                <small>{item.description || 'No description'}</small>
-              </div>
-            </button>
-            <div className="home__menu" data-workspace-menu={item.id}>
-              <button
-                type="button"
-                className={menuId === item.id ? 'home__more home__more--on' : 'home__more'}
-                aria-label={`Workspace actions for ${item.name}`}
-                aria-haspopup="menu"
-                aria-expanded={menuId === item.id}
-                disabled={deletingId === item.id}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  setMenuId((current) => (current === item.id ? null : item.id))
-                }}
-              >
-                <span aria-hidden="true">⋯</span>
-              </button>
-              {menuId === item.id ? (
-                <div className="home__menu-panel" role="menu">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="home__menu-item"
-                    disabled={deletingId === item.id || editBusy}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      setMenuId(null)
-                      setEditingId(item.id)
-                      setEditName(item.name)
-                      setEditDescription(item.description || '')
-                      setError(null)
-                    }}
-                  >
-                    Update
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="home__menu-item home__menu-item--danger"
-                    disabled={deletingId === item.id}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      setMenuId(null)
-                      setDeletingId(item.id)
-                      void onDelete(item.id)
-                        .catch((err) => {
-                          setError(err instanceof Error ? err.message : 'Could not delete workspace')
-                        })
-                        .finally(() => setDeletingId(null))
-                    }}
-                  >
-                    {deletingId === item.id ? 'Deleting…' : 'Delete'}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-            {editingId === item.id ? (
-              <form
-                className="home__edit"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  if (!editName.trim()) {
-                    setError('Give the workspace a name.')
-                    return
-                  }
-                  setEditBusy(true)
-                  setError(null)
-                  void onUpdate(item.id, {
-                    name: editName.trim(),
-                    description: editDescription.trim(),
-                  })
-                    .then(() => setEditingId(null))
-                    .catch((err) => {
-                      setError(err instanceof Error ? err.message : 'Could not update workspace')
-                    })
-                    .finally(() => setEditBusy(false))
-                }}
-              >
-                <label>
-                  Name
-                  <input
-                    value={editName}
-                    onChange={(event) => setEditName(event.target.value)}
-                    autoComplete="off"
-                  />
-                </label>
-                <label>
-                  Description
-                  <textarea
-                    value={editDescription}
-                    onChange={(event) => setEditDescription(event.target.value)}
-                    rows={2}
-                  />
-                </label>
-                <div className="home__edit-actions">
-                  <button className="btn" type="button" disabled={editBusy} onClick={() => setEditingId(null)}>
-                    Cancel
-                  </button>
-                  <button className="btn btn--primary" type="submit" disabled={editBusy}>
-                    {editBusy ? 'Saving…' : 'Save'}
-                  </button>
-                </div>
-              </form>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-function Settings({
-  watchGateEnabled,
-  onWatchGateEnabled,
-}: {
-  watchGateEnabled: boolean
-  onWatchGateEnabled: (value: boolean) => void
-}) {
-  return (
-    <div className="settings">
-      <header className="pane-header settings__bar">
-        <div className="pane-header__main">
-          <strong>App settings</strong>
-          <p className="muted">Preferences for this Isovane install (not per workspace).</p>
-        </div>
-      </header>
-
-      <section className="card form">
-        <h2>Features</h2>
-        <p className="muted">
-          Toggle product areas in the workspace nav. Changes apply immediately on this browser.
-        </p>
-        <div className="form__row">
-          <div>
-            <strong>Watch → gate</strong>
-            <p className="muted">Show Watch and Gate fix in the sidebar.</p>
-          </div>
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={watchGateEnabled}
-              onChange={(event) => onWatchGateEnabled(event.target.checked)}
-              aria-label="Enable Watch → gate"
-            />
-            <span />
-          </label>
-        </div>
-      </section>
-    </div>
-  )
-}

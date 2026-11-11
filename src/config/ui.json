@@ -1,0 +1,39 @@
+{
+  "themes": [
+    { "id": "red-dwarf", "label": "Red Dwarf" },
+    { "id": "earth", "label": "Earth" },
+    { "id": "black-hole", "label": "Black Hole" }
+  ],
+  "paneEyebrows": {
+    "home": "All agents",
+    "analyze-code": "Find in code before ship",
+    "analyze-arch": "Find in architecture before ship",
+    "watch": "Gate outside the model",
+    "playground": "Sealed attack labs · not your repository",
+    "fix-analyze": "Dev-time patch · code / prompt / architecture",
+    "fix-watch": "Runtime patch · policy / sidecar",
+    "settings": "App",
+    "default": "Signal health"
+  },
+  "archModes": [
+    {
+      "id": "privacy",
+      "label": "Deployment / network",
+      "hint": "Upload → recreate board → fix egress / residency issues on the diagram"
+    },
+    {
+      "id": "workflow",
+      "label": "Workflow graph",
+      "hint": "Upload → recreate board → fix HITL / MCP / tool risks by editing the graph"
+    }
+  ],
+  "diagramFormats": [
+    { "id": "auto", "label": "Auto-detect" },
+    { "id": "mermaid", "label": "Mermaid" },
+    { "id": "plantuml", "label": "PlantUML" },
+    { "id": "graphviz", "label": "Graphviz / DOT" },
+    { "id": "drawio", "label": "Draw.io" },
+    { "id": "image", "label": "Image / PDF" }
+  ],
+  "diagramAccept": ".png,.jpg,.jpeg,.webp,.gif,.svg,.pdf,.mmd,.mermaid,.puml,.plantuml,.pu,.dot,.gv,.drawio,.dio,.xml,.txt,.md"
+}

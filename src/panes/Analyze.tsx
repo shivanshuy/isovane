@@ -11,56 +11,23 @@ import {
   type Finding,
 } from '../api'
 import { ArchDiagramBoard } from '../components/ArchDiagramBoard'
+import {
+  ARCH_MODE_OPTIONS,
+  DIAGRAM_ACCEPT,
+  DIAGRAM_FORMAT_OPTIONS,
+} from '../config'
 import { ZIP_MAX_BYTES } from '../constants'
 import { isArchitectureFinding, isOpenFinding } from '../findings'
+import DEMO_PRIVACY from '../../fixtures/architecture/01-privacy-multi-cloud-egress.puml?raw'
+import DEMO_WORKFLOW from '../../fixtures/architecture/demo-workflow.mmd?raw'
 import { FindingStory } from './FindingStory'
 
-const DIAGRAM_ACCEPT =
-  '.png,.jpg,.jpeg,.webp,.gif,.svg,.pdf,.mmd,.mermaid,.puml,.plantuml,.pu,.dot,.gv,.drawio,.dio,.xml,.txt,.md'
-
-const FORMAT_OPTIONS = [
-  { id: 'auto', label: 'Auto-detect' },
-  { id: 'mermaid', label: 'Mermaid' },
-  { id: 'plantuml', label: 'PlantUML' },
-  { id: 'graphviz', label: 'Graphviz / DOT' },
-  { id: 'drawio', label: 'Draw.io' },
-  { id: 'image', label: 'Image / PDF' },
-] as const
-
-const DEMO_PRIVACY = `@startuml
-cloud "Org VPC" {
-  database "Customer PII DB"
-  rectangle "Agent API"
-}
-cloud "OpenAI (US)" as OpenAI
-cloud "Anthropic (US)" as Anthropic
-cloud "LangSmith traces" as Logs
-"Customer PII DB" --> "Agent API"
-"Agent API" --> OpenAI : prompts + docs
-"Agent API" --> Anthropic : fallback model
-"Agent API" --> Logs : full prompt spans
-@enduml`
-
-const DEMO_WORKFLOW = `flowchart LR
-  UI[Chat UI] --> Orch[Orchestrator agent]
-  Orch --> Research[Research agent]
-  Orch --> Writer[Writer agent]
-  Research --> MCP[MCP filesystem + browser]
-  Writer --> Tools[email + shell tools]
-  Research -.->|a2a handoff| Writer`
-
-const ARCH_MODES: { id: Exclude<ArchMode, 'both'>; label: string; hint: string }[] = [
-  {
-    id: 'privacy',
-    label: 'Deployment / network',
-    hint: 'Upload → recreate board → fix egress / residency issues on the diagram',
-  },
-  {
-    id: 'workflow',
-    label: 'Workflow graph',
-    hint: 'Upload → recreate board → fix HITL / MCP / tool risks by editing the graph',
-  },
-]
+const FORMAT_OPTIONS = DIAGRAM_FORMAT_OPTIONS
+const ARCH_MODES = ARCH_MODE_OPTIONS as {
+  id: Exclude<ArchMode, 'both'>
+  label: string
+  hint: string
+}[]
 
 type CodeMode = 'folder' | 'git'
 type AnalyzeMode = 'code' | 'architecture'

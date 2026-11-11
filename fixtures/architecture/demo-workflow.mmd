@@ -1,0 +1,7 @@
+flowchart LR
+  UI[Chat UI] --> Orch[Orchestrator agent]
+  Orch --> Research[Research agent]
+  Orch --> Writer[Writer agent]
+  Research --> MCP[MCP filesystem + browser]
+  Writer --> Tools[email + shell tools]
+  Research -.->|a2a handoff| Writer
