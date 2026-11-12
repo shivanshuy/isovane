@@ -77,7 +77,7 @@ export function parseHash(hash = typeof window !== 'undefined' ? window.location
   return { kind: 'welcome' }
 }
 
-export function toHash(route: AppRoute): string {
+function toHash(route: AppRoute): string {
   if (route.kind === 'welcome') return '#/welcome'
   if (route.kind === 'home') return '#/workspaces'
   if (route.kind === 'settings') return '#/settings'

@@ -117,6 +117,68 @@ export function AnalyzeArchitecturePane({
 
   const modeHint = ARCH_MODES.find((item) => item.id === archMode)?.hint
 
+  const analysisNotes: { key: string; tone: string; label: string; text: string }[] = []
+  if (inventory?.vision?.message || inventory?.vision?.status) {
+    analysisNotes.push({
+      key: 'vision',
+      tone:
+        inventory?.vision?.status === 'ok'
+          ? 'ok'
+          : inventory?.vision?.status === 'ocr_fallback'
+            ? 'ocr'
+            : 'warn',
+      label:
+        inventory?.vision?.status === 'ok'
+          ? 'Image extract'
+          : inventory?.vision?.status === 'ocr_fallback'
+            ? 'OCR fallback'
+            : 'Seed fallback',
+      text: [
+        inventory?.vision?.message ||
+          (inventory?.vision?.status === 'ok'
+            ? 'Recreated boxes and arrows from the image.'
+            : inventory?.vision?.status === 'ocr_fallback'
+              ? 'Vision LLM did not work — fell back to OCR.'
+              : 'Vision LLM did not work — loaded a filename seed.'),
+        inventory?.vision?.vision_error
+          ? `Vision error: ${inventory.vision.vision_error}`
+          : '',
+        inventory?.vision?.ocr_error ? `OCR: ${inventory.vision.ocr_error}` : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
+    })
+  }
+  if (inventory?.risk?.message || inventory?.risk?.status) {
+    analysisNotes.push({
+      key: 'risk',
+      tone: inventory?.risk?.status === 'llm' ? 'ok' : 'warn',
+      label: inventory?.risk?.status === 'llm' ? 'LLM risk' : 'Rules fallback',
+      text:
+        inventory?.risk?.message ||
+        (inventory?.risk?.status === 'llm'
+          ? 'Findings from arc_image_analyze.'
+          : 'LLM risk analyze unavailable — used the architecture rule catalog.'),
+    })
+  }
+  if (inventory?.privacy_posture) {
+    const gaps = inventory.privacy_posture.gaps || []
+    analysisNotes.push({
+      key: 'privacy',
+      tone: gaps.length ? 'warn' : 'ok',
+      label: 'Privacy',
+      text: [
+        `LLMs: ${(inventory.privacy_posture.llm_vendors || []).join(', ') || '—'}`,
+        `Data: ${(inventory.privacy_posture.data_stores || []).join(', ') || '—'}`,
+        `HITL: ${inventory.privacy_posture.controls?.hitl_present ? 'yes' : 'no'}`,
+        `DLP/ZDR: ${inventory.privacy_posture.controls?.dlp_or_zdr_labeled ? 'yes' : 'no'}`,
+        gaps.length ? `Gaps: ${gaps.join(', ')}` : '',
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    })
+  }
+
   return (
     <div className="pane pane--analyze pane--analyze-solo">
       <section className="scan-section">
@@ -241,76 +303,33 @@ export function AnalyzeArchitecturePane({
 
       {error ? <p className="err">{error}</p> : null}
 
-      {inventory?.vision?.message || inventory?.vision?.status ? (
-        <p
-          className={
-            inventory?.vision?.status === 'ok'
-              ? 'extract-banner extract-banner--ok'
-              : inventory?.vision?.status === 'ocr_fallback'
-                ? 'extract-banner extract-banner--ocr'
-                : 'extract-banner extract-banner--warn'
-          }
-          role="status"
-        >
-          <strong>
-            {inventory?.vision?.status === 'ok'
-              ? 'Image extract'
-              : inventory?.vision?.status === 'ocr_fallback'
-                ? 'OCR fallback'
-                : 'Seed fallback'}
-          </strong>
-          <span>
-            {inventory?.vision?.message ||
-              (inventory?.vision?.status === 'ok'
-                ? 'Recreated boxes and arrows from the image.'
-                : inventory?.vision?.status === 'ocr_fallback'
-                  ? 'Vision LLM did not work — fell back to OCR.'
-                  : 'Vision LLM did not work — loaded a filename seed.')}
-            {inventory?.vision?.vision_error
-              ? ` Vision error: ${inventory.vision.vision_error}`
-              : ''}
-            {inventory?.vision?.ocr_error ? ` OCR: ${inventory.vision.ocr_error}` : ''}
-          </span>
-        </p>
-      ) : null}
-
-      {inventory?.risk?.message || inventory?.risk?.status ? (
-        <p
-          className={
-            inventory?.risk?.status === 'llm'
-              ? 'extract-banner extract-banner--ok'
-              : 'extract-banner extract-banner--warn'
-          }
-          role="status"
-        >
-          <strong>
-            {inventory?.risk?.status === 'llm' ? 'LLM risk analyze' : 'Rules fallback'}
-          </strong>
-          <span>
-            {inventory?.risk?.message ||
-              (inventory?.risk?.status === 'llm'
-                ? 'Findings from arc_image_analyze.'
-                : 'LLM risk analyze unavailable — used the architecture rule catalog.')}
-          </span>
-        </p>
-      ) : null}
-
-      {inventory?.privacy_posture ? (
-        <div className="extract-banner extract-banner--ok privacy-posture" role="status">
-          <strong>Privacy posture</strong>
-          <span>
-            LLMs: {(inventory.privacy_posture.llm_vendors || []).join(', ') || '—'}
-            {' · '}
-            Data: {(inventory.privacy_posture.data_stores || []).join(', ') || '—'}
-            {' · '}
-            HITL: {inventory.privacy_posture.controls?.hitl_present ? 'yes' : 'no'}
-            {' · '}
-            DLP/ZDR labeled: {inventory.privacy_posture.controls?.dlp_or_zdr_labeled ? 'yes' : 'no'}
-            {(inventory.privacy_posture.gaps || []).length
-              ? ` · Gaps: ${(inventory.privacy_posture.gaps || []).join(', ')}`
-              : ''}
-          </span>
-        </div>
+      {analysisNotes.length ? (
+        <section className="analyze-notes-section" aria-label="Notes">
+          <header className="analyze-notes-section__head">
+            <h3>Notes</h3>
+            <p className="muted">
+              {analysisNotes.map((note) => note.label).join(' · ')}
+            </p>
+          </header>
+          <details className="analyze-notes">
+            <summary>
+              <span className="analyze-notes__summary-label">Details</span>
+              <span className="muted">Expand for status messages</span>
+            </summary>
+            <div className="analyze-notes__body" role="status">
+              {analysisNotes.map((note) => (
+                <p
+                  key={note.key}
+                  className={`analyze-notes__item analyze-notes__item--${note.tone}`}
+                  title={note.text}
+                >
+                  <strong>{note.label}</strong>
+                  <span>{note.text}</span>
+                </p>
+              ))}
+            </div>
+          </details>
+        </section>
       ) : null}
 
       {inventory?.graph?.nodes?.length ||
@@ -333,6 +352,7 @@ export function AnalyzeArchitecturePane({
                     : 'Board edits the Structurizr/C4 workspace (same model the LLM sees).'
           }
           busy={busy}
+          boundaries={inventory?.board?.boundaries || inventory?.boundaries}
           onReanalyze={async (graph, board) => {
             setBusy(true)
             setError(null)
@@ -341,6 +361,7 @@ export function AnalyzeArchitecturePane({
               setDiagramFormat('structurizr')
               setDiagramFile(null)
               // Same Structurizr workspace the board edited — sent to LLM/rules
+              // (includes deploymentNodes / boundaries with containment)
               const result = await analyzeArchitectureGraph(workspaceId, graph, archMode)
               setInventory({
                 ...(result.inventory ?? {}),
@@ -348,9 +369,11 @@ export function AnalyzeArchitecturePane({
                 board: {
                   nodes: board.nodes,
                   edges: board.edges,
+                  boundaries: board.boundaries,
                 },
                 nodes: board.nodes,
                 edges: board.edges,
+                boundaries: board.boundaries,
                 mermaid: board.mermaid,
               })
               onRefresh()

@@ -1,0 +1,47 @@
+@startuml
+title Boundaries — trust zones + VPC (board / LLM test)
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+skinparam packageStyle rectangle
+
+' Mix of cloud / rectangle packages to exercise Cloud, Trust zone, and VPC boundary kinds.
+
+cloud "Public internet / untrusted" as Public {
+  rectangle "Chat widget" as Chat
+  rectangle "Public docs site" as Docs
+}
+
+rectangle "Trust zone — DMZ" as DMZ {
+  rectangle "API gateway" as GW
+  rectangle "HITL console" as HITL
+}
+
+cloud "Private VPC (prod)" as VPC {
+  rectangle "Support agent" as Agent
+  database "Private CRM" as CRM
+  rectangle "Refund tool" as Refund
+}
+
+Chat --> GW : HTTPS
+Docs --> Agent : RAG crawl (cross-boundary)
+GW --> Agent : authenticated
+HITL --> Refund : approve
+Agent --> CRM : read customer
+Agent --> Refund : side-effect (no gate on this edge)
+
+note right of DMZ
+  Draw as Trust zone on the board.
+  Contains: API gateway, HITL console
+end note
+
+note right of VPC
+  Draw as VPC / network on the board.
+  Contains: Support agent, Private CRM, Refund tool
+end note
+
+note left of Public
+  Draw as Cloud (or Boundary).
+  Contains: Chat widget, Public docs site
+end note
+@enduml

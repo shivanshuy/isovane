@@ -1,0 +1,45 @@
+@startuml
+title Boundaries — multi-cloud containment (board / LLM test)
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+skinparam packageStyle rectangle
+skinparam cloudBorderThickness 1.5
+
+' Explicit named clouds = what you should redraw as Boundaries on the playground.
+' After vision extract (or paste), draw Cloud / Trust / VPC regions around the same groups,
+' then Analyze board — LLM payload must list contains_labels per boundary.
+
+cloud "Org VPC (EU)" as Org {
+  rectangle "Chat UI" as UI
+  database "Customer PII DB" as PII
+  rectangle "Agent API" as Agent
+}
+
+cloud "OpenAI Cloud (US)" as OAI {
+  rectangle "GPT-4o endpoint" as GPT
+}
+
+cloud "Anthropic Cloud (US)" as ANT {
+  rectangle "Claude endpoint" as Claude
+}
+
+cloud "Observability SaaS" as OBS {
+  rectangle "LangSmith traces" as LS
+}
+
+UI --> Agent : prompts
+PII --> Agent : raw PII fields
+Agent --> GPT : prompts + docs
+Agent --> Claude : fallback
+Agent --> LS : full spans
+
+note bottom of Org
+  Boundary test: Org VPC should contain
+  Chat UI, Customer PII DB, Agent API
+end note
+
+note bottom of OAI
+  Boundary test: OpenAI Cloud contains GPT-4o only
+end note
+@enduml

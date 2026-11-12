@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   createWorkspace as createWorkspaceApi,
   deleteWorkspace as deleteWorkspaceApi,
@@ -11,7 +11,6 @@ import {
   type Trace,
 } from './api'
 import { asWorkspace, readInitialRoute, viewToPane, type NavId, type Pane } from './appShell'
-import { paneEyebrow } from './config'
 import { NavIcon } from './components/ShellIcons'
 import { STORAGE_WATCH_GATE } from './constants'
 import type { Workspace } from './data'
@@ -436,9 +435,8 @@ export default function App() {
           {inWorkspace ? (
             <section className="stage__head">
               <div>
-                <p className="stage__eyebrow">{paneEyebrow(pane, fixLane)}</p>
                 <h1>{workspace.name}</h1>
-                <p>{workspace.description || 'No description yet.'}</p>
+                {workspace.description ? <p>{workspace.description}</p> : null}
               </div>
             </section>
           ) : null}

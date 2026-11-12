@@ -1,0 +1,41 @@
+@startuml
+title Boundaries — cross-cloud egress paths (LLM risk test)
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+
+' Three vendor clouds + one org cloud. Cross-boundary arrows are the risk signal.
+
+cloud "Acme Corp (on-prem)" as Acme {
+  rectangle "Internal chat" as Chat
+  database "HR PII store" as HR
+  rectangle "Orchestrator" as Orch
+}
+
+cloud "Azure OpenAI (EU)" as Azure {
+  rectangle "aoai-sweden" as AOAI
+}
+
+cloud "OpenAI (US)" as OpenAI {
+  rectangle "api.openai.com" as OAI
+}
+
+cloud "Datadog (US)" as DD {
+  rectangle "APM + logs" as APM
+}
+
+Chat --> Orch
+HR --> Orch : employee records
+Orch --> AOAI : primary (same residency intent)
+Orch --> OAI : shadow eval (cross-border)
+Orch --> APM : prompts logged
+
+note bottom
+  Expected board boundaries:
+  1) Acme Corp — contains chat, HR, orchestrator
+  2) Azure OpenAI — contains aoai-sweden
+  3) OpenAI US — contains api.openai.com
+  4) Datadog — contains APM
+  Cross-boundary: Orch→OAI and Orch→APM should flag egress / logging risks
+end note
+@enduml

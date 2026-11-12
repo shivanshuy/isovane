@@ -83,21 +83,10 @@ export function AnalyzeCodePane({
         <header className="pane-header scan-section__title">
           <div className="pane-header__main">
             <span>Scan</span>
-            <p className="muted">Upload or link what to scan, then run Analyze.</p>
-          </div>
-          <div className="pane-header__actions">
-            <button className="btn btn--primary" type="button" disabled={busy} onClick={runCode}>
-              {busy ? 'Scanning…' : 'Analyze code'}
-            </button>
           </div>
         </header>
 
         <section className="card drop analyze-scan">
-          <header className="card__title">
-            <span>Artifacts</span>
-            <span className="muted">Zip upload or git URL</span>
-          </header>
-
           <div className="filters code-modes" role="tablist" aria-label="Code source">
             {(
               [
@@ -117,54 +106,68 @@ export function AnalyzeCodePane({
           </div>
 
           {codeMode === 'folder' ? (
-            <div className="filedrop">
-              <input
-                ref={zipRef}
-                type="file"
-                accept=".zip,.tgz,.tar.gz"
-                hidden
-                onChange={(event) => {
-                  setZipFile(event.target.files?.[0] || null)
-                }}
-              />
-              <button className="btn" type="button" onClick={() => zipRef.current?.click()}>
-                {zipFile ? 'Change .zip' : 'Choose .zip'}
-              </button>
-              <span className="muted">
-                {zipFile?.name || 'You zip the project locally, then upload it here'}
-              </span>
-              {zipFile ? (
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => {
-                    setZipFile(null)
-                    if (zipRef.current) zipRef.current.value = ''
+            <div className="analyze-scan__row">
+              <div className="filedrop">
+                <input
+                  ref={zipRef}
+                  type="file"
+                  accept=".zip,.tgz,.tar.gz"
+                  hidden
+                  onChange={(event) => {
+                    setZipFile(event.target.files?.[0] || null)
                   }}
-                >
-                  Clear
+                />
+                <button className="btn" type="button" onClick={() => zipRef.current?.click()}>
+                  {zipFile ? 'Change .zip' : 'Choose .zip'}
                 </button>
-              ) : null}
+                <span className="muted">
+                  {zipFile?.name || 'You zip the project locally, then upload it here'}
+                </span>
+                {zipFile ? (
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={() => {
+                      setZipFile(null)
+                      if (zipRef.current) zipRef.current.value = ''
+                    }}
+                  >
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+              <button
+                className="btn btn--primary"
+                type="button"
+                disabled={busy}
+                onClick={() => void runCode()}
+              >
+                {busy ? 'Scanning…' : 'Analyze code'}
+              </button>
             </div>
           ) : null}
 
           {codeMode === 'git' ? (
-            <label className="field">
-              Git repository URL
-              <input
-                type="text"
-                value={gitUrl}
-                onChange={(event) => setGitUrl(event.target.value)}
-                placeholder="https://github.com/org/agent.git"
-              />
-            </label>
+            <div className="analyze-scan__row analyze-scan__row--git">
+              <label className="field">
+                Git repository URL
+                <input
+                  type="text"
+                  value={gitUrl}
+                  onChange={(event) => setGitUrl(event.target.value)}
+                  placeholder="https://github.com/org/agent.git"
+                />
+              </label>
+              <button
+                className="btn btn--primary"
+                type="button"
+                disabled={busy}
+                onClick={() => void runCode()}
+              >
+                {busy ? 'Scanning…' : 'Analyze code'}
+              </button>
+            </div>
           ) : null}
-
-          <p className="hint">
-            {codeMode === 'folder'
-              ? 'Zip the folder on your machine first, upload the archive, then use Analyze code in the header.'
-              : 'Shallow-clones the repo on the server — use Analyze code in the header when ready.'}
-          </p>
         </section>
       </section>
 

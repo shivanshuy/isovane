@@ -115,6 +115,20 @@ export type ArchBoardNode = {
 
 export type ArchBoardEdge = { from?: string; to?: string; kind?: string }
 
+export type ArchBoardBoundary = {
+  id?: string
+  label?: string
+  kind?: 'cloud' | 'trust' | 'vpc' | 'zone' | string
+  x?: number
+  y?: number
+  w?: number
+  h?: number
+  z?: number
+  /** Board node ids whose centers fall inside this boundary. */
+  contains?: string[]
+  contains_labels?: string[]
+}
+
 /** Structurizr / C4 workspace — single source of truth for board + LLM. */
 export type ArchitectureGraph = {
   id?: number
@@ -143,6 +157,14 @@ export type ArchitectureGraph = {
       tags?: string
       properties?: Record<string, string>
     }>
+    /** Drawn clouds / trust zones / VPCs from the playground. */
+    deploymentNodes?: Array<{
+      id: string
+      name: string
+      description?: string
+      tags?: string
+      properties?: Record<string, string>
+    }>
   }
   views?: {
     systemLandscapeViews?: Array<{
@@ -156,6 +178,7 @@ export type ArchitectureGraph = {
   /** @deprecated legacy board shape — accepted by server normalize */
   nodes?: ArchBoardNode[]
   edges?: ArchBoardEdge[]
+  boundaries?: ArchBoardBoundary[]
   schema?: string
   meta?: { source?: string; filename?: string; [key: string]: unknown }
 }
@@ -165,7 +188,12 @@ export type ArchInventory = {
   mode?: string
   nodes?: ArchBoardNode[]
   edges?: ArchBoardEdge[]
-  board?: { nodes?: ArchBoardNode[]; edges?: ArchBoardEdge[] }
+  board?: {
+    nodes?: ArchBoardNode[]
+    edges?: ArchBoardEdge[]
+    boundaries?: ArchBoardBoundary[]
+  }
+  boundaries?: ArchBoardBoundary[]
   graph?: ArchitectureGraph
   mermaid?: string
   vision?: {

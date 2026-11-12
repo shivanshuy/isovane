@@ -4,17 +4,6 @@
     { "id": "earth", "label": "Earth" },
     { "id": "black-hole", "label": "Black Hole" }
   ],
-  "paneEyebrows": {
-    "home": "All agents",
-    "analyze-code": "Find in code before ship",
-    "analyze-arch": "Find in architecture before ship",
-    "watch": "Gate outside the model",
-    "playground": "Sealed attack labs · not your repository",
-    "fix-analyze": "Dev-time patch · code / prompt / architecture",
-    "fix-watch": "Runtime patch · policy / sidecar",
-    "settings": "App",
-    "default": "Signal health"
-  },
   "archModes": [
     {
       "id": "privacy",

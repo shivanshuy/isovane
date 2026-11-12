@@ -73,11 +73,48 @@ Switch to OpenAI with `MODEL_PROVIDER: openai` and `OPENAI_API_KEY` for cloud ex
 | `05-mcp-supply-chain-deploy.puml` + `.png` | Workflow | Unpinned MCP, shell from chat, A2A, observability sink |
 | `06-privacy-multi-cloud-image.jpg` | Deployment | Image upload path (filename-seeded analysis) |
 | `07-workflow-agentic-image.jpg` | Workflow | Image upload path (filename-seeded analysis) |
+| `08-boundaries-multi-cloud.puml` + `.png` | Deployment | **Boundary test** — Org VPC + OpenAI/Anthropic/LangSmith clouds with clear containment |
+| `09-boundaries-trust-vpc.puml` + `.png` | Both | **Boundary test** — Public cloud + Trust DMZ + Private VPC |
+| `10-boundaries-cross-cloud-egress.puml` + `.png` | Deployment | **Boundary test** — cross-border Orch→OpenAI / Datadog egress |
+
+## Boundary playground test (08–10)
+
+Use these to verify drawn **Cloud / Trust / VPC** regions are sent to the LLM with correct `contains_labels`.
+
+### A) Paste PlantUML (rules / text path)
+
+1. Mode: **Deployment / network**
+2. Paste `08-boundaries-multi-cloud.puml` (or 09 / 10) → **Analyze architecture**
+3. On the board, draw matching boundaries around the same groups:
+   - **08:** `Org VPC (EU)`, `OpenAI Cloud (US)`, `Anthropic Cloud (US)`, `Observability SaaS`
+   - **09:** Public cloud, Trust zone (DMZ), Private VPC
+   - **10:** Acme Corp, Azure OpenAI, OpenAI US, Datadog
+4. Put clouds **Send back**, tweak labels, **Analyze board**
+5. Check findings mention cross-cloud / residency; in network tab confirm request body has `boundaries` / `deploymentNodes` with `contains`
+
+### B) Upload PNG (vision + board path)
+
+1. Upload `08-boundaries-multi-cloud.png` (or 09 / 10)
+2. Correct boxes if vision missed any
+3. Draw the same named boundaries around groups (palette → **Draw Cloud / Trust / VPC**)
+4. **Analyze board** — payload should include e.g. `OpenAI Cloud` contains `GPT-4o endpoint`
+
+Expected containment (08):
+
+| Boundary | Should contain |
+|----------|----------------|
+| Org VPC (EU) | Chat UI, Customer PII DB, Agent API |
+| OpenAI Cloud (US) | GPT-4o endpoint |
+| Anthropic Cloud (US) | Claude endpoint |
+| Observability SaaS | LangSmith traces |
+
+Also useful: existing `01-privacy-multi-cloud-egress.png` already draws Org VPC + vendor clouds — redraw those as playground Boundaries after extract.
 
 ## Re-render PlantUML → PNG
 
 ```powershell
-# from repo root, with Java installed
+# from fixtures/architecture, with Java installed
 Invoke-WebRequest https://github.com/plantuml/plantuml/releases/download/v1.2024.8/plantuml-1.2024.8.jar -OutFile plantuml.jar
-java -jar plantuml.jar -tpng fixtures/architecture/*.puml
+java -jar plantuml.jar -tpng 08-boundaries-multi-cloud.puml 09-boundaries-trust-vpc.puml 10-boundaries-cross-cloud-egress.puml
+# or all: java -jar plantuml.jar -tpng *.puml
 ```
