@@ -2206,7 +2206,7 @@ primary actions right (Finding story / Playground / Scan / Watch / Fix) */
 .code-editor__body{
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  max-height: 280px;
+  max-height: 420px;
   overflow: auto;
 }
 

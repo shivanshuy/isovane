@@ -60,8 +60,21 @@ export function FindingStory({
     setTab('details')
   }, [finding.id])
 
-  const solutions =
-    finding.solutions?.length ? finding.solutions : finding.suggested_fix?.checklist || []
+  // Prefer industry remediations from suggested_fix.checklist (YAML catalog),
+  // then merge any extra solutions — sources are never shown in the UI.
+  const solutions = (() => {
+    const fromFix = finding.suggested_fix?.checklist || []
+    const fromSolutions = finding.solutions || []
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const item of [...fromFix, ...fromSolutions]) {
+      const key = item.trim()
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      out.push(item)
+    }
+    return out
+  })()
   const preset = presetForFinding(finding)
   const incidents =
     finding.incidents && finding.incidents.length > 0
@@ -208,6 +221,16 @@ export function FindingStory({
                   : 'Fix this on the architecture board, then Analyze board.'}
               </p>
             )}
+            {finding.suggested_fix?.diff ? (
+              <div className="finding-story__fix-diff">
+                <CodeEditor
+                  code={finding.suggested_fix.diff}
+                  label="Suggested patch"
+                  path="fix.diff"
+                  showLines={false}
+                />
+              </div>
+            ) : null}
           </section>
 
           {hasTechnical ? (
@@ -221,6 +244,27 @@ export function FindingStory({
                     </p>
                   ))
                 : null}
+
+              {finding.evidence.snippet ? (
+                <CodeEditor
+                  code={finding.evidence.snippet}
+                  path={finding.evidence.path}
+                  label={
+                    finding.evidence.path
+                      ? `Code at ${finding.evidence.path}${
+                          finding.evidence.line ? `:${finding.evidence.line}` : ''
+                        }`
+                      : 'Code evidence'
+                  }
+                  startLine={finding.evidence.line}
+                />
+              ) : finding.evidence.path ? (
+                <p className="muted">
+                  Location: <code>{finding.evidence.path}</code>
+                  {finding.evidence.line ? `:${finding.evidence.line}` : ''}
+                  {' — no source snippet was captured for this finding.'}
+                </p>
+              ) : null}
 
               <dl className="tech-meta">
                 <MetaRow
@@ -283,24 +327,6 @@ export function FindingStory({
                     {moreInfo}
                   </a>
                 </p>
-              ) : null}
-
-              {finding.evidence.snippet ? (
-                <CodeEditor
-                  code={finding.evidence.snippet}
-                  path={finding.evidence.path}
-                  label="Sink / evidence"
-                  startLine={finding.evidence.line}
-                />
-              ) : null}
-
-              {finding.suggested_fix?.diff ? (
-                <CodeEditor
-                  code={finding.suggested_fix.diff}
-                  label="Suggested patch"
-                  path="fix.diff"
-                  showLines={false}
-                />
               ) : null}
 
               {solutions.length > 0 ? (
