@@ -18,6 +18,7 @@ export function Mark({ icon }: { icon: WorkspaceIcon }) {
 export type NavIconKind =
   | 'analyze-code'
   | 'analyze-arch'
+  | 'analyze-trust'
   | 'watch'
   | 'fix-dev'
   | 'fix-gate'
@@ -53,6 +54,21 @@ export function NavIcon({ kind }: { kind: NavIconKind }) {
           <rect x="9" y="2.5" width="4.5" height="4.5" rx="0.8" stroke="currentColor" strokeWidth="1.4" />
           <rect x="5.75" y="9" width="4.5" height="4.5" rx="0.8" stroke="currentColor" strokeWidth="1.4" />
           <path d="M4.75 7v1.2M11.25 7v1.2M7 9.5H6.2M10 9.5h-.8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+      </span>
+    )
+  }
+  if (kind === 'analyze-trust') {
+    return (
+      <span className="nav__glyph" aria-hidden="true">
+        <svg viewBox="0 0 16 16" fill="none">
+          <path
+            d="M8 1.8 12.5 3.6v3.4c0 3.1-2.1 5.4-4.5 6.2C5.6 12.4 3.5 10.1 3.5 7V3.6L8 1.8Z"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinejoin="round"
+          />
+          <path d="M6.2 7.4 7.4 8.6l2.6-2.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
     )

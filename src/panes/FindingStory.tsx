@@ -46,12 +46,14 @@ export function FindingStory({
   onOpenFix,
   onSimulate,
   onRefresh,
+  onOpenTrustStudio,
   showCodeFix = true,
 }: {
   finding: Finding
   onOpenFix: (findingId: string) => void
   onSimulate?: (findingId: string) => void
   onRefresh: () => void
+  onOpenTrustStudio?: () => void
   showCodeFix?: boolean
 }) {
   const [tab, setTab] = useState<StoryTab>('details')
@@ -221,6 +223,16 @@ export function FindingStory({
                   : 'Fix this on the architecture board, then Analyze board.'}
               </p>
             )}
+            {onOpenTrustStudio &&
+            (finding.tags || []).some((t) =>
+              ['toxic-flow', 'dual-llm', 'model-sees', 'trust-studio', 'camel'].includes(t),
+            ) ? (
+              <p style={{ marginTop: '0.75rem' }}>
+                <button type="button" className="btn" onClick={onOpenTrustStudio}>
+                  Open in Trust Studio
+                </button>
+              </p>
+            ) : null}
             {finding.suggested_fix?.diff ? (
               <div className="finding-story__fix-diff">
                 <CodeEditor

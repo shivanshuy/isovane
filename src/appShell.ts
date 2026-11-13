@@ -9,6 +9,7 @@ export type Pane =
   | 'home'
   | 'analyze-code'
   | 'analyze-arch'
+  | 'analyze-trust'
   | 'watch'
   | 'fix'
   | 'settings'
@@ -18,6 +19,7 @@ export type NavId =
   | 'home'
   | 'analyze-code'
   | 'analyze-arch'
+  | 'analyze-trust'
   | 'watch'
   | 'fix-dev'
   | 'fix-gate'
@@ -30,6 +32,7 @@ export function viewToPane(view: RouteView): { pane: Pane; nav: NavId; fixLane: 
   if (view === 'fix-dev') return { pane: 'fix', nav: 'fix-dev', fixLane: 'analyze' }
   if (view === 'fix-gate') return { pane: 'fix', nav: 'fix-gate', fixLane: 'watch' }
   if (view === 'analyze-arch') return { pane: 'analyze-arch', nav: 'analyze-arch', fixLane: 'analyze' }
+  if (view === 'analyze-trust') return { pane: 'analyze-trust', nav: 'analyze-trust', fixLane: 'analyze' }
   return { pane: 'analyze-code', nav: 'analyze-code', fixLane: 'analyze' }
 }
 

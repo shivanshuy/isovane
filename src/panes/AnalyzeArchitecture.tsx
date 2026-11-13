@@ -29,6 +29,7 @@ export function AnalyzeArchitecturePane({
   onRefresh,
   onOpenFix,
   onSimulate,
+  onOpenTrustStudio,
   initialFindingId,
 }: {
   workspaceId: string
@@ -36,6 +37,7 @@ export function AnalyzeArchitecturePane({
   onRefresh: () => void
   onOpenFix: (findingId: string) => void
   onSimulate?: (findingId: string) => void
+  onOpenTrustStudio?: () => void
   initialFindingId?: string | null
 }) {
   const [archMode, setArchMode] = useState<Exclude<ArchMode, 'both'>>('privacy')
@@ -178,6 +180,29 @@ export function AnalyzeArchitecturePane({
         .join(' · '),
     })
   }
+  if (inventory?.trifecta) {
+    const t = inventory.trifecta
+    analysisNotes.push({
+      key: 'trifecta',
+      tone: t.complete ? 'warn' : 'ok',
+      label: 'Trifecta',
+      text: [
+        t.complete ? 'Lethal trifecta complete' : 'Trifecta incomplete',
+        `severity ${t.severity}`,
+        `private=${t.private_data?.present ? 'yes' : 'no'}`,
+        `untrusted=${t.untrusted_ingress?.present ? 'yes' : 'no'}`,
+        `egress=${t.egress?.present ? 'yes' : 'no'}`,
+      ].join(' · '),
+    })
+  }
+  if (inventory?.dual_llm && (inventory.dual_llm.verdict_count || 0) > 0) {
+    analysisNotes.push({
+      key: 'dual-llm',
+      tone: 'warn',
+      label: 'Dual-LLM',
+      text: `${inventory.dual_llm.verdict_count} agent(s) mix untrusted ingress with privileged tools — open Trust Studio to apply Dual-LLM.`,
+    })
+  }
 
   return (
     <div className="pane pane--analyze pane--analyze-solo">
@@ -188,6 +213,11 @@ export function AnalyzeArchitecturePane({
             <p className="muted">{modeHint || 'Diagram or source inventory'}</p>
           </div>
           <div className="pane-header__actions">
+            {onOpenTrustStudio ? (
+              <button className="btn" type="button" onClick={onOpenTrustStudio}>
+                Trust Studio
+              </button>
+            ) : null}
             <button className="btn" type="button" onClick={() => loadDemo('privacy')}>
               Privacy demo
             </button>
@@ -395,6 +425,7 @@ export function AnalyzeArchitecturePane({
         onOpenFix={onOpenFix}
         onSimulate={onSimulate}
         onRefresh={onRefresh}
+        onOpenTrustStudio={onOpenTrustStudio}
         showCodeFix={false}
       />
     </div>

@@ -19,6 +19,7 @@ import { useTheme } from './hooks/useTheme'
 import { AnalyzeArchitecturePane, AnalyzeCodePane } from './panes/Analyze'
 import { FixPane } from './panes/Fix'
 import { PlaygroundPane } from './panes/Playground'
+import { TrustStudioPane } from './panes/TrustStudio'
 import { WatchPane } from './panes/Watch'
 import { Home } from './pages/Home'
 import { Landing } from './pages/Landing'
@@ -339,7 +340,10 @@ export default function App() {
 
             <div
               className={
-                nav === 'analyze-code' || nav === 'analyze-arch' || nav === 'fix-dev'
+                nav === 'analyze-code' ||
+                nav === 'analyze-arch' ||
+                nav === 'analyze-trust' ||
+                nav === 'fix-dev'
                   ? 'nav__flow nav__flow--on'
                   : 'nav__flow'
               }
@@ -362,6 +366,14 @@ export default function App() {
                 <NavIcon kind="analyze-arch" />
                 Architecture
                 <em>{openArchFindings} open</em>
+              </button>
+              <button
+                className={nav === 'analyze-trust' ? 'nav__link nav__link--on' : 'nav__link'}
+                type="button"
+                onClick={() => goView('analyze-trust')}
+              >
+                <NavIcon kind="analyze-trust" />
+                Trust Studio
               </button>
               <button
                 className={
@@ -479,11 +491,19 @@ export default function App() {
               onRefresh={refreshSecurity}
               onOpenFix={(id) => openFix('analyze', id)}
               onSimulate={openSimulate}
+              onOpenTrustStudio={() => goView('analyze-trust')}
               initialFindingId={
                 route.kind === 'workspace' && route.view === 'analyze-arch'
                   ? route.findingId
                   : null
               }
+            />
+          ) : null}
+          {inWorkspace && pane === 'analyze-trust' ? (
+            <TrustStudioPane
+              workspaceId={workspace.id}
+              onRefresh={refreshSecurity}
+              onOpenFinding={(id) => openFix('analyze', id)}
             />
           ) : null}
           {inWorkspace && pane === 'watch' ? (

@@ -1,6 +1,7 @@
 export type RouteView =
   | 'analyze-code'
   | 'analyze-arch'
+  | 'analyze-trust'
   | 'watch'
   | 'fix-dev'
   | 'fix-gate'
@@ -16,6 +17,7 @@ export type AppRoute =
 const VIEWS = new Set<RouteView>([
   'analyze-code',
   'analyze-arch',
+  'analyze-trust',
   'watch',
   'fix-dev',
   'fix-gate',
@@ -66,7 +68,10 @@ export function parseHash(hash = typeof window !== 'undefined' ? window.location
     else if (viewPart === 'fix-dev') view = 'fix-dev'
     else if (viewPart === 'fix-gate') view = 'fix-gate'
     else if (viewPart === 'architecture' || viewPart === 'analyze-arch') view = 'analyze-arch'
+    else if (viewPart === 'trust' || viewPart === 'analyze-trust' || viewPart === 'trust-studio')
+      view = 'analyze-trust'
     else if (viewPart === 'analyze' && lanePart === 'architecture') view = 'analyze-arch'
+    else if (viewPart === 'analyze' && lanePart === 'trust') view = 'analyze-trust'
     else if (viewPart === 'analyze' && (lanePart === 'code' || !lanePart)) view = 'analyze-code'
     else if (viewPart === 'code' || viewPart === 'analyze-code') view = 'analyze-code'
     else if (VIEWS.has(viewPart as RouteView)) view = viewPart as RouteView
@@ -91,9 +96,11 @@ function toHash(route: AppRoute): string {
           ? '/analyze/code'
           : route.view === 'analyze-arch'
             ? '/analyze/architecture'
-            : route.view === 'playground'
-              ? '/playground'
-              : `/${route.view}`
+            : route.view === 'analyze-trust'
+              ? '/analyze/trust'
+              : route.view === 'playground'
+                ? '/playground'
+                : `/${route.view}`
   const query = route.findingId ? `?f=${encodeURIComponent(route.findingId)}` : ''
   return `${base}${viewPath}${query}`
 }

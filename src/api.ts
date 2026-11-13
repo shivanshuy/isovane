@@ -232,7 +232,78 @@ export type ArchInventory = {
     gaps?: string[]
     kinds_present?: string[]
   }
+  trifecta?: TrifectaScorecard
+  dual_llm?: {
+    verdict_count?: number
+    verdicts?: DualLlmVerdict[]
+    has_quarantine_pattern?: boolean
+  }
   remediation_hints?: Array<{ title?: string; summary?: string; region?: string | null }>
+}
+
+export type ToxicFlow = {
+  id: string
+  pair_id: string
+  label: string
+  severity: string
+  caps: string[]
+  nodes: string[]
+  edges?: { from: string; to: string; kind?: string }[]
+  sources?: string[]
+  finding_title?: string | null
+}
+
+export type DualLlmVerdict = {
+  id: string
+  agent_id: string
+  agent_label: string
+  has_untrusted: boolean
+  has_privileged_tools: boolean
+  has_quarantine: boolean
+  severity: string
+  summary: string
+  owasp?: string[]
+}
+
+export type ModelSeesTool = {
+  name: string
+  description?: string
+  poison_signals?: string[]
+}
+
+export type ModelSeesView = {
+  server: string
+  path: string
+  raw_text: string
+  tools?: ModelSeesTool[]
+  poison_signals?: string[]
+  split_risk?: boolean
+}
+
+export type TrustPattern = {
+  id: string
+  title: string
+  summary: string
+  remediation_id?: string | null
+  owasp?: string[]
+  policy_snippet?: string | null
+}
+
+export type TrifectaAxis = {
+  present: boolean
+  nodes?: string[]
+  detail?: string
+}
+
+export type TrifectaScorecard = {
+  schema_id?: string
+  private_data: TrifectaAxis
+  untrusted_ingress: TrifectaAxis
+  egress: TrifectaAxis
+  complete: boolean
+  severity: string
+  blocking_flows?: string[]
+  gaps?: string[]
 }
 
 export type AnalyzeResult = {
@@ -535,4 +606,114 @@ export function runSimulation(
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+export function analyzeToxicFlows(
+  workspaceId: string,
+  body?: { graph?: ArchitectureGraph; folder?: string; persist_findings?: boolean },
+) {
+  return request<{
+    flows: ToxicFlow[]
+    capability_graph: Record<string, unknown>
+    findings: { id: string; title: string; severity: string }[]
+  }>(`/workspaces/${workspaceId}/toxic-flows/analyze`, {
+    method: 'POST',
+    body: JSON.stringify(body || {}),
+  })
+}
+
+export function fetchToxicFlows(workspaceId: string) {
+  return request<{
+    flows: ToxicFlow[]
+    capability_graph?: Record<string, unknown>
+  }>(`/workspaces/${workspaceId}/toxic-flows`)
+}
+
+export function analyzeDualLlmLint(
+  workspaceId: string,
+  body?: { graph?: ArchitectureGraph; persist_findings?: boolean },
+) {
+  return request<{
+    verdicts: DualLlmVerdict[]
+    findings: { id: string; title: string; severity: string }[]
+    has_quarantine_pattern?: boolean
+  }>(`/workspaces/${workspaceId}/dual-llm/lint`, {
+    method: 'POST',
+    body: JSON.stringify(body || {}),
+  })
+}
+
+export function applyDualLlm(workspaceId: string, graph?: ArchitectureGraph) {
+  return request<{
+    ok: boolean
+    graph?: ArchitectureGraph
+    board?: unknown
+    hint?: string
+  }>(`/workspaces/${workspaceId}/dual-llm/apply`, {
+    method: 'POST',
+    body: JSON.stringify(graph ? { graph } : {}),
+  })
+}
+
+export function analyzeModelView(
+  workspaceId: string,
+  body?: { folder?: string; live_probe?: boolean; persist_findings?: boolean },
+) {
+  return request<{
+    views: ModelSeesView[]
+    findings: { id: string; title: string; severity: string }[]
+  }>(`/workspaces/${workspaceId}/mcp/model-view`, {
+    method: 'POST',
+    body: JSON.stringify(body || {}),
+  })
+}
+
+export function fetchTrustPatterns() {
+  return request<{ patterns: TrustPattern[] }>('/trust-patterns')
+}
+
+export function applyTrustPattern(
+  workspaceId: string,
+  patternId: string,
+  graph?: ArchitectureGraph,
+) {
+  return request<{
+    ok: boolean
+    pattern_id: string
+    title?: string
+    graph?: ArchitectureGraph
+    board?: unknown
+    policy_snippet?: string | null
+    hint?: string
+  }>(`/workspaces/${workspaceId}/board/apply-pattern`, {
+    method: 'POST',
+    body: JSON.stringify({ pattern_id: patternId, graph }),
+  })
+}
+
+export function fetchTrifecta(workspaceId: string, graph?: ArchitectureGraph) {
+  return request<{ workspace_id: string; scorecard: TrifectaScorecard }>(
+    `/workspaces/${workspaceId}/scorecard/trifecta`,
+    {
+      method: 'POST',
+      body: JSON.stringify(graph ? { graph } : {}),
+    },
+  )
+}
+
+export function fetchStudioState(workspaceId: string) {
+  return request<Record<string, unknown>>(`/workspaces/${workspaceId}/studio`)
+}
+
+export function putWorkspaceBoard(
+  workspaceId: string,
+  payload: { graph?: ArchitectureGraph; board?: unknown; source?: string },
+) {
+  return request<{ workspace_id: string; graph: ArchitectureGraph }>(
+    `/workspaces/${workspaceId}/board`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    },
+  )
 }

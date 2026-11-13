@@ -20,6 +20,7 @@ export function FindingsBoard({
   onOpenFix,
   onSimulate,
   onRefresh,
+  onOpenTrustStudio,
   showCodeFix = true,
 }: {
   open: Finding[]
@@ -28,6 +29,7 @@ export function FindingsBoard({
   onOpenFix: (findingId: string) => void
   onSimulate?: (findingId: string) => void
   onRefresh: () => void
+  onOpenTrustStudio?: () => void
   showCodeFix?: boolean
 }) {
   const { llm, general } = groupFindingsByType(open)
@@ -60,6 +62,7 @@ export function FindingsBoard({
               onOpenFix={onOpenFix}
               onSimulate={onSimulate}
               onRefresh={onRefresh}
+              onOpenTrustStudio={onOpenTrustStudio}
               showCodeFix={showCodeFix}
             />
           ) : (
